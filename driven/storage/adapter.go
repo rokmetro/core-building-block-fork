@@ -134,11 +134,6 @@ func (sa *Adapter) Start() error {
 		return errors.WrapErrorAction("migrating", "accounts to orgs_accounts", nil, err)
 	}
 
-	err = sa.migrateAuthTypes()
-	if err != nil {
-		return errors.WrapErrorAction("migrating", model.TypeAuthType, nil, err)
-	}
-
 	return err
 }
 
