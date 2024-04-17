@@ -104,10 +104,6 @@ func (a *phoneIdentifierImpl) maskIdentifier() (string, error) {
 	return utils.GetLogValue(a.identifier, 4), nil // mask all but the last 4 phone digits
 }
 
-func (a *phoneIdentifierImpl) requireVerificationForSignIn() bool {
-	return false
-}
-
 func (a *phoneIdentifierImpl) checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error {
 	verified := accountIdentifier.Verified
 	expired := accountIdentifier.VerificationExpiry == nil || accountIdentifier.VerificationExpiry.Before(time.Now())

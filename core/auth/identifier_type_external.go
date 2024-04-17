@@ -73,10 +73,6 @@ func (a *externalIdentifierImpl) maskIdentifier() (string, error) {
 	return a.identifier, nil
 }
 
-func (a *externalIdentifierImpl) requireVerificationForSignIn() bool {
-	return true
-}
-
 func (a *externalIdentifierImpl) checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error {
 	return nil
 }

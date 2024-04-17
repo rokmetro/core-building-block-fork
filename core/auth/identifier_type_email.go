@@ -114,10 +114,6 @@ func (a *emailIdentifierImpl) maskIdentifier() (string, error) {
 	return strings.Join(emailParts, "@"), nil
 }
 
-func (a *emailIdentifierImpl) requireVerificationForSignIn() bool {
-	return true
-}
-
 func (a *emailIdentifierImpl) checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error {
 	verified := accountIdentifier.Verified
 	expired := accountIdentifier.VerificationExpiry == nil || accountIdentifier.VerificationExpiry.Before(time.Now())

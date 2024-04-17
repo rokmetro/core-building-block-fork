@@ -53,9 +53,6 @@ type identifierType interface {
 	// masks the cached identifier
 	maskIdentifier() (string, error)
 
-	// gives whether the identifier must be verified before sign-in is allowed
-	requireVerificationForSignIn() bool
-
 	// checks whether the given account identifier is verified, restarts verification if necessary and possible
 	checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error
 

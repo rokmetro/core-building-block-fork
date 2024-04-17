@@ -99,10 +99,6 @@ func (a *usernameIdentifierImpl) maskIdentifier() (string, error) {
 	return a.identifier, nil
 }
 
-func (a *usernameIdentifierImpl) requireVerificationForSignIn() bool {
-	return true
-}
-
 func (a *usernameIdentifierImpl) checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error {
 	return nil // return nil because username verification is not possible for now
 }
