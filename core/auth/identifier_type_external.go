@@ -65,7 +65,7 @@ func (a *externalIdentifierImpl) withIdentifier(creds string) (identifierType, e
 	return nil, errors.ErrorData(logutils.StatusMissing, "external identifier", nil)
 }
 
-func (a *externalIdentifierImpl) buildIdentifier(accountID *string, appName string) (string, *model.AccountIdentifier, error) {
+func (a *externalIdentifierImpl) buildIdentifier(accountID *string, appOrg model.ApplicationOrganization, explicitVerify bool) (string, *model.AccountIdentifier, error) {
 	return "", nil, errors.ErrorData(logutils.StatusInvalid, typeIdentifierType, nil)
 }
 

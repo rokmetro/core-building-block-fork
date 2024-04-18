@@ -48,7 +48,7 @@ type identifierType interface {
 	// Returns:
 	//	message (string): response message
 	//	accountIdentifier (*model.AccountIdentifier): the new account identifier
-	buildIdentifier(accountID *string, appName string) (string, *model.AccountIdentifier, error)
+	buildIdentifier(accountID *string, appOrg model.ApplicationOrganization, explicitVerify bool) (string, *model.AccountIdentifier, error)
 
 	// masks the cached identifier
 	maskIdentifier() (string, error)
@@ -69,7 +69,7 @@ type authCommunicationChannel interface {
 	//sends the verification code to the identifier
 	// Returns:
 	//	sentCode (bool): whether the verification code was sent successfully
-	sendVerifyIdentifier(accountIdentifier *model.AccountIdentifier, appName string) (bool, error)
+	sendVerifyIdentifier(accountIdentifier *model.AccountIdentifier, appOrg model.ApplicationOrganization, explicitVerify bool) (bool, error)
 
 	//restarts the identifier verification
 	restartIdentifierVerification(accountIdentifier *model.AccountIdentifier, appName string) error

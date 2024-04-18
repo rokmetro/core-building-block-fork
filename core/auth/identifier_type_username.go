@@ -77,7 +77,7 @@ func (a *usernameIdentifierImpl) withIdentifier(creds string) (identifierType, e
 	return &usernameIdentifierImpl{auth: a.auth, code: a.code, identifier: username}, nil
 }
 
-func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appName string) (string, *model.AccountIdentifier, error) {
+func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appOrg model.ApplicationOrganization, explicitVerify bool) (string, *model.AccountIdentifier, error) {
 	if a.identifier == "" {
 		return "", nil, errors.ErrorData(logutils.StatusMissing, "username identifier", nil)
 	}
