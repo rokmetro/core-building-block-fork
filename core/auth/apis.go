@@ -945,7 +945,7 @@ func (a *Auth) CreateAnonymousAccount(context storage.TransactionContext, appID 
 			}
 		}
 
-		newAccount, err = a.applyCreateAnonymousAccount(context, *appOrg, anonymousID, preferences, systemConfigs, l)
+		newAccount, err = a.applyCreateAnonymousAccount(context, *appOrg, anonymousID, preferences, systemConfigs)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionCreate, "anonymous account", &logutils.FieldArgs{"account_id": anonymousID}, err)
 		}

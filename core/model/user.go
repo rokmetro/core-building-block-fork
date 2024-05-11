@@ -405,7 +405,7 @@ type AccountAuthType struct {
 
 	Credential *Credential //this can be nil as the external auth types authenticates the users outside the system
 
-	Active bool
+	Active bool // whether this account auth type has been used for sign in before
 
 	DateCreated time.Time
 	DateUpdated *time.Time
@@ -435,6 +435,11 @@ func (aat *AccountAuthType) Equals(other AccountAuthType) bool {
 	}
 
 	return true
+}
+
+// HasCredential returns whether this AccountAuthType has a linked credential
+func (aat *AccountAuthType) HasCredential() bool {
+	return aat.Credential != nil
 }
 
 // AccountIdentifier represents account identifiers

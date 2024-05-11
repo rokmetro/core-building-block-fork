@@ -48,8 +48,8 @@ func (a *firebaseAuthImpl) resetCredential(credential *model.Credential, resetCo
 	return nil, nil
 }
 
-func (a *firebaseAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, string, error) {
-	return "", "", nil
+func (a *firebaseAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, *model.AccountAuthType, error) {
+	return "", nil, nil
 }
 
 func (a *firebaseAuthImpl) withParams(params map[string]interface{}) (authType, error) {

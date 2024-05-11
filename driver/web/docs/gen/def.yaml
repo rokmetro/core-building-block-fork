@@ -7081,6 +7081,8 @@ components:
           nullable: true
         active:
           type: boolean
+        has_credential:
+          type: boolean
     AccountIdentifier:
       required:
         - id
