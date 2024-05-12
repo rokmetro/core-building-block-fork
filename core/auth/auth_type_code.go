@@ -82,7 +82,7 @@ func (a *codeAuthImpl) resetCredential(credential *model.Credential, resetCode *
 }
 
 func (a *codeAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, *model.AccountAuthType, error) {
-	if len(aats) != 0 {
+	if len(aats) != 1 {
 		return "", nil, errors.ErrorData(logutils.StatusInvalid, "account auth types", &logutils.FieldArgs{"auth_type": a.authType, "count": len(aats)})
 	}
 

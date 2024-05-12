@@ -601,24 +601,28 @@ func (a *webAuthnAuthImpl) completeLogin(response *protocol.ParsedCredentialAsse
 		}
 	} else {
 		// if no user, we can validate a discoverable login
+		var discovererErr error
 		userDiscoverer := func(rawID, userHandle []byte) (webauthn.User, error) {
 			legacyUserHandle := false
 
 			// find account by userHandle (should match an account ID)
 			account, err := a.auth.storage.FindAccountByID(nil, string(userHandle))
 			if err != nil {
-				return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle)}, err)
+				discovererErr = errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle)}, err)
+				return nil, discovererErr
 			}
 			if account == nil {
 				// backwards compatibility: user handles (user IDs) used to be credential IDs
 				// check if the user handle matches any of the user's webauthn credential IDs
 				account, err = a.auth.storage.FindAccountByCredentialID(nil, string(userHandle))
 				if err != nil {
-					return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle), "legacy": true}, err)
+					discovererErr = errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle), "legacy": true}, err)
+					return nil, discovererErr
 				}
 
 				if account == nil {
-					return nil, errors.ErrorData(logutils.StatusMissing, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle)})
+					discovererErr = errors.ErrorData(logutils.StatusMissing, model.TypeAccount, &logutils.FieldArgs{"userHandle": string(userHandle)}).SetStatus(utils.ErrorStatusNotFound)
+					return nil, discovererErr
 				}
 				legacyUserHandle = true
 			}
@@ -630,7 +634,8 @@ func (a *webAuthnAuthImpl) completeLogin(response *protocol.ParsedCredentialAsse
 				if aat.Credential != nil {
 					webAuthnCred, err := a.parseWebAuthnCredential(aat.Credential.Value)
 					if err != nil {
-						return nil, errors.WrapErrorAction(logutils.ActionParse, "webauthn credential", nil, err)
+						discovererErr = errors.WrapErrorAction(logutils.ActionParse, "webauthn credential", nil, err)
+						return nil, discovererErr
 					}
 
 					if webAuthnCred != nil && bytes.Equal(rawID, webAuthnCred.ID) {
@@ -644,12 +649,13 @@ func (a *webAuthnAuthImpl) completeLogin(response *protocol.ParsedCredentialAsse
 				}
 			}
 
-			return nil, errors.ErrorData(logutils.StatusMissing, "user", &logutils.FieldArgs{"userHandle": string(userHandle), "rawID": string(rawID)})
+			discovererErr = errors.ErrorData(logutils.StatusMissing, "user", &logutils.FieldArgs{"userHandle": string(userHandle), "rawID": string(rawID)}).SetStatus(utils.ErrorStatusNotFound)
+			return nil, discovererErr
 		}
 
 		updatedCred, err = a.config.ValidateDiscoverableLogin(userDiscoverer, *session, response)
 		if err != nil {
-			return nil, errors.WrapErrorAction(logutils.ActionValidate, "discoverable login", nil, err)
+			return nil, errors.WrapErrorAction(logutils.ActionValidate, "discoverable login", &logutils.FieldArgs{"details": err}, discovererErr)
 		}
 	}
 

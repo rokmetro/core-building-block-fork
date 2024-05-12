@@ -746,30 +746,32 @@ func (a *Auth) applyIdentifierlessSignIn(supportedAuthType model.SupportedAuthTy
 	creds string, params string) (map[string]interface{}, *model.Account, []model.MFAType, error) {
 	// attempt identifier-less login (only sign in is allowed because sign up is impossible without a user identifier)
 	message, signInAccountAuthType, err := a.checkCredentials(nil, authImpl, nil, nil, creds, params, appOrg)
-	if err != nil || signInAccountAuthType == nil {
+	if err != nil {
 		return nil, nil, nil, errors.WrapErrorAction(logutils.ActionVerify, model.TypeCredential, nil, err)
 	}
 
 	if message != nil {
 		return map[string]interface{}{"message": *message}, nil, nil, nil
+	} else if signInAccountAuthType != nil {
+		account, err := a.storage.FindAccountByAuthTypeID(nil, signInAccountAuthType.ID)
+		if err != nil {
+			return nil, nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"auth_type.id": signInAccountAuthType.ID}, err)
+		}
+
+		if authImpl.requireIdentifierVerificationForSignIn() && len(account.GetVerifiedAccountIdentifiers()) == 0 {
+			return nil, nil, nil, errors.ErrorData(logutils.StatusInvalid, model.TypeAccount, &logutils.FieldArgs{"verified": false})
+		}
+
+		accountAuthTypes, err := a.findAccountAuthTypesAndCredentials(account, supportedAuthType)
+		if err != nil {
+			return nil, nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccountAuthType, nil, err)
+		}
+
+		_, verifiedMFATypes, err := a.completeSignIn(nil, account, accountAuthTypes, signInAccountAuthType)
+		return nil, account, verifiedMFATypes, err
 	}
 
-	account, err := a.storage.FindAccountByAuthTypeID(nil, signInAccountAuthType.ID)
-	if err != nil {
-		return nil, nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"auth_type.id": signInAccountAuthType.ID}, err)
-	}
-
-	if authImpl.requireIdentifierVerificationForSignIn() && len(account.GetVerifiedAccountIdentifiers()) == 0 {
-		return nil, nil, nil, errors.ErrorData(logutils.StatusInvalid, model.TypeAccount, &logutils.FieldArgs{"verified": false})
-	}
-
-	accountAuthTypes, err := a.findAccountAuthTypesAndCredentials(account, supportedAuthType)
-	if err != nil {
-		return nil, nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccountAuthType, nil, err)
-	}
-
-	_, verifiedMFATypes, err := a.completeSignIn(nil, account, accountAuthTypes, signInAccountAuthType)
-	return nil, account, verifiedMFATypes, err
+	return nil, nil, nil, errors.ErrorData(logutils.StatusMissing, model.TypeAccountAuthType, &logutils.FieldArgs{"auth_type": supportedAuthType.AuthType.Code})
 }
 
 func (a *Auth) completeSignIn(message *string, account *model.Account, accountAuthTypes []model.AccountAuthType, signInAccountAuthType *model.AccountAuthType) (map[string]interface{}, []model.MFAType, error) {
