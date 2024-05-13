@@ -48,8 +48,8 @@ func (a *signatureAuthImpl) resetCredential(credential *model.Credential, resetC
 	return nil, nil
 }
 
-func (a *signatureAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, string, error) {
-	return "", "", nil
+func (a *signatureAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, *model.AccountAuthType, error) {
+	return "", nil, nil
 }
 
 func (a *signatureAuthImpl) withParams(params map[string]interface{}) (authType, error) {

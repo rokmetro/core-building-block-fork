@@ -112,15 +112,16 @@ type authType interface {
 	//checkCredential checks if the incoming credentials are valid for the stored credentials
 	// Returns:
 	//	message (string): information required to complete login, if applicable
-	//	credentialID (string): the ID of the credential used to validate the login
-	checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, string, error)
+	//	accountAuthType (*model.AccountAuthType): the account auth type used to validate the login
+	//TODO: change to return an account auth type ID -> would be better for marking active
+	checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, *model.AccountAuthType, error)
 
 	//withParams parses the params and copies the calling authType while caching the params
 	// Returns:
 	//	authImpl (authType): Copy of calling authType with cached params
 	withParams(params map[string]interface{}) (authType, error)
 
-	// gives whether the identifier used with this auth type must be verified before sign-in is allowed
+	//requireIdentifierVerificationForSignIn gives whether the identifier used with this auth type must be verified before sign-in is allowed
 	requireIdentifierVerificationForSignIn() bool
 
 	//allowMultiple says whether an account may have multiple auth types of this type
@@ -549,8 +550,9 @@ type Storage interface {
 	///
 
 	//LoginStates
-	FindLoginState(appID string, orgID string, accountID *string, stateParams map[string]interface{}) (*model.LoginState, error)
-	InsertLoginState(loginState model.LoginState) error
+	FindLoginState(context storage.TransactionContext, appID string, orgID string, accountID *string, stateParams map[string]interface{}) (*model.LoginState, error)
+	FindLoginStates(context storage.TransactionContext, appID string, orgID string, accountID string) ([]model.LoginState, error)
+	InsertLoginState(context storage.TransactionContext, loginState model.LoginState) error
 	DeleteLoginState(context storage.TransactionContext, id string) error
 
 	//Accounts

@@ -235,31 +235,31 @@ func (a *passwordAuthImpl) resetCredential(credential *model.Credential, resetCo
 	return credsMap, nil
 }
 
-func (a *passwordAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, string, error) {
+func (a *passwordAuthImpl) checkCredentials(identifierImpl identifierType, accountID *string, aats []model.AccountAuthType, creds string, params string, appOrg model.ApplicationOrganization) (string, *model.AccountAuthType, error) {
 	if len(aats) != 1 {
-		return "", "", errors.ErrorData(logutils.StatusInvalid, "account auth type list", &logutils.FieldArgs{"count": len(aats)})
+		return "", nil, errors.ErrorData(logutils.StatusInvalid, "account auth types", &logutils.FieldArgs{"auth_type": a.authType, "count": len(aats)})
 	}
 	if aats[0].Credential == nil {
-		return "", "", errors.ErrorData(logutils.StatusInvalid, model.TypeAccountAuthType, &logutils.FieldArgs{"id": aats[0].ID, "credential": nil})
+		return "", nil, errors.ErrorData(logutils.StatusInvalid, model.TypeAccountAuthType, &logutils.FieldArgs{"id": aats[0].ID, "credential": nil})
 	}
 
 	storedCreds, err := a.mapToCreds(aats[0].Credential.Value)
 	if err != nil {
-		return "", "", errors.WrapErrorAction(logutils.ActionCast, "map to password creds", nil, err)
+		return "", nil, errors.WrapErrorAction(logutils.ActionCast, "map to password creds", nil, err)
 	}
 
 	incomingCreds, err := a.parseCreds(creds, true)
 	if err != nil {
-		return "", "", errors.WrapErrorAction(logutils.ActionParse, typePasswordCreds, nil, err)
+		return "", nil, errors.WrapErrorAction(logutils.ActionParse, typePasswordCreds, nil, err)
 	}
 
 	//compare stored and request passwords
 	err = bcrypt.CompareHashAndPassword([]byte(storedCreds.Password), []byte(incomingCreds.Password))
 	if err != nil {
-		return "", "", errors.WrapErrorAction(logutils.ActionValidate, model.TypeCredential, nil, err).SetStatus(utils.ErrorStatusInvalid)
+		return "", nil, errors.WrapErrorAction(logutils.ActionValidate, model.TypeCredential, nil, err).SetStatus(utils.ErrorStatusInvalid)
 	}
 
-	return "", aats[0].Credential.ID, nil
+	return "", &aats[0], nil
 }
 
 func (a *passwordAuthImpl) withParams(params map[string]interface{}) (authType, error) {
