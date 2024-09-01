@@ -664,7 +664,7 @@ func (m *database) applyApplicationAssetsChecks(applicationAssets *collectionWra
 	m.logger.Info("apply applications assets checks.....")
 
 	//add app assets index
-	err := applicationAssets.AddIndex(bson.D{primitive.E{Key: "app_id", Value: 1}, primitive.E{Key: "org_id", Value: 1}, primitive.E{Key: "name", Value: 1}}, true)
+	err := applicationAssets.AddIndex(bson.D{primitive.E{Key: "org_id", Value: 1}, primitive.E{Key: "app_id", Value: 1}, primitive.E{Key: "name", Value: 1}}, true)
 	if err != nil {
 		return err
 	}
