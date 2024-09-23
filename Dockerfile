@@ -24,8 +24,7 @@ COPY --from=builder /app/driver/web/docs/gen/def.yaml /driver/web/docs/gen/def.y
 
 COPY --from=builder /app/driver/web/authorization_model.conf /driver/web/authorization_model.conf
 
-COPY --from=builder /app/driver/web/authorization_services_policy.csv /driver/web/authorization_services_policy.csv
-COPY --from=builder /app/driver/web/authorization_admin_policy.csv /driver/web/authorization_admin_policy.csv
+COPY --from=builder /app/driver/web/authorization_application_policy.csv /driver/web/authorization_application_policy.csv
 COPY --from=builder /app/driver/web/authorization_enc_policy.csv /driver/web/authorization_enc_policy.csv
 COPY --from=builder /app/driver/web/authorization_bbs_policy.csv /driver/web/authorization_bbs_policy.csv
 COPY --from=builder /app/driver/web/authorization_tps_policy.csv /driver/web/authorization_tps_policy.csv
