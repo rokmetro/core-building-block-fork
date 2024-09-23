@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decouple authentication and verification mechanisms [#665](https://github.com/rokwire/core-building-block/issues/665)
 - Refactor account auth types [#674](https://github.com/rokwire/core-building-block/issues/674)
 - Upgrade dependencies
+- Separate auth claims checks from permissions checks
 ### Fixed
 - Fix email and code sign up
 - Allow update username API to create username
