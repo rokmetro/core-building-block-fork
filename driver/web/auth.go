@@ -104,7 +104,7 @@ func newServicesAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenau
 		return http.StatusOK, nil
 	}
 
-	auth := tokenauth.NewStandardHandler(servicesTokenAuth, check)
+	auth := tokenauth.NewScopeHandler(servicesTokenAuth, check)
 	return auth, nil
 }
 
@@ -221,6 +221,6 @@ func newApplicationAuth(serviceRegManager *authservice.ServiceRegManager) (*toke
 		return nil, errors.WrapErrorAction(logutils.ActionStart, "token auth for applicationAuth", nil, err)
 	}
 
-	auth := tokenauth.NewScopeHandler(applicationTokenAuth, nil)
+	auth := tokenauth.NewStandardHandler(applicationTokenAuth, nil)
 	return auth, nil
 }
