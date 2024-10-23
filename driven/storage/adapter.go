@@ -61,6 +61,9 @@ type Adapter struct {
 	cachedApplicationConfigs *syncmap.Map
 	applicationConfigsLock   *sync.RWMutex
 
+	cachedApplicationAssets *syncmap.Map
+	applicationAssetsLock   *sync.RWMutex
+
 	cachedConfigs *syncmap.Map
 	configsLock   *sync.RWMutex
 
@@ -120,6 +123,12 @@ func (sa *Adapter) Start() error {
 	err = sa.cacheApplicationConfigs()
 	if err != nil {
 		return errors.WrapErrorAction(logutils.ActionCache, model.TypeApplicationConfig, nil, err)
+	}
+
+	// cache application assets
+	err = sa.cacheApplicationAssets()
+	if err != nil {
+		return errors.WrapErrorAction(logutils.ActionCache, model.TypeAppAsset, nil, err)
 	}
 
 	// cache configs
@@ -3201,6 +3210,11 @@ func (sa *Adapter) FindApplicationType(id string) (*model.ApplicationType, error
 	return appType, nil
 }
 
+// FindAppAsset finds app asset
+func (sa *Adapter) FindAppAsset(orgID string, appID string, name string) (*model.AppAsset, error) {
+	return sa.getCachedApplicationAsset(orgID, appID, name)
+}
+
 // FindApplicationOrganization finds application organization
 func (sa *Adapter) FindApplicationOrganization(appID string, orgID string) (*model.ApplicationOrganization, error) {
 	return sa.getCachedApplicationOrganization(appID, orgID)
@@ -3728,6 +3742,9 @@ func NewStorageAdapter(host string, mongoDBAuth string, mongoDBName string, mong
 	cachedApplicationConfigs := &syncmap.Map{}
 	applicationConfigsLock := &sync.RWMutex{}
 
+	cachedApplicationAssets := &syncmap.Map{}
+	applicationAssetsLock := &sync.RWMutex{}
+
 	cachedConfigs := &syncmap.Map{}
 	configsLock := &sync.RWMutex{}
 
@@ -3739,6 +3756,7 @@ func NewStorageAdapter(host string, mongoDBAuth string, mongoDBName string, mong
 		cachedOrganizations: cachedOrganizations, organizationsLock: organizationsLock,
 		cachedApplications: cachedApplications, applicationsLock: applicationsLock,
 		cachedAuthTypes: cachedAuthTypes, authTypesLock: authTypesLock,
+		cachedApplicationAssets: cachedApplicationAssets, applicationAssetsLock: applicationAssetsLock,
 		cachedApplicationsOrganizations: cachedApplicationsOrganizations, applicationsOrganizationsLock: applicationsOrganizationsLock,
 		cachedApplicationConfigs: cachedApplicationConfigs, applicationConfigsLock: applicationConfigsLock,
 		cachedConfigs: cachedConfigs, configsLock: configsLock, cachedKeys: cachedKeys, keysLock: keysLock}
@@ -3780,6 +3798,10 @@ func (sl *storageListener) OnApplicationConfigsUpdated() {
 	sl.adapter.cacheApplicationConfigs()
 }
 
+func (sl *storageListener) OnApplicationAssetsUpdated() {
+	sl.adapter.cacheApplicationAssets()
+}
+
 func (sl *storageListener) OnConfigsUpdated() {
 	sl.adapter.cacheConfigs()
 }
@@ -3795,6 +3817,7 @@ type Listener interface {
 	OnApplicationsUpdated()
 	OnApplicationsOrganizationsUpdated()
 	OnApplicationConfigsUpdated()
+	OnApplicationAssetsUpdated()
 	OnConfigsUpdated()
 }
 
@@ -3827,6 +3850,9 @@ func (d *DefaultListenerImpl) OnApplicationsOrganizationsUpdated() {}
 
 // OnApplicationConfigsUpdated notifies application configs have been updated
 func (d *DefaultListenerImpl) OnApplicationConfigsUpdated() {}
+
+// OnApplicationAssetsUpdated notifies application assets have been updated
+func (d *DefaultListenerImpl) OnApplicationAssetsUpdated() {}
 
 // OnConfigsUpdated notifies configs have been updated
 func (d *DefaultListenerImpl) OnConfigsUpdated() {}

@@ -1174,7 +1174,7 @@ func (a *Auth) SendVerifyIdentifier(appTypeIdentifier string, orgID string, apiK
 	}
 
 	if identifierChannel, ok := identifierImpl.(authCommunicationChannel); ok {
-		_, err = identifierChannel.sendVerifyIdentifier(accountIdentifier, appOrg.Application.Name)
+		_, err = identifierChannel.sendVerifyIdentifier(accountIdentifier, *appOrg, true)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionSend, "verification code", nil, err)
 		}
@@ -2051,6 +2051,31 @@ func (a *Auth) UnlinkAccountIdentifier(accountID string, accountIdentifierID str
 	err = a.unlinkAccountIdentifier(nil, account, &accountIdentifierID, nil, admin)
 
 	return account, nil
+}
+
+// AddAccountUsername attempts to add the given username to the given account as a new account identifier
+func (a *Auth) AddAccountUsername(context storage.TransactionContext, account *model.Account, username string) (bool, error) {
+	if account == nil {
+		return false, errors.ErrorData(logutils.StatusMissing, model.TypeAccount, nil)
+	}
+
+	usernameCode := IdentifierTypeUsername
+	usernameIdentifierImpl := a.getIdentifierTypeImpl("", &usernameCode, &username)
+	if !usernameIdentifierImpl.allowMultiple() && account.GetAccountIdentifier(usernameCode, "") != nil {
+		// the account already has a username identifier, so return not added
+		return false, nil
+	}
+
+	_, usernameIdentifier, err := usernameIdentifierImpl.buildIdentifier(&account.ID, account.AppOrg, false)
+	if err != nil {
+		return false, errors.WrapErrorAction("building", model.TypeAccountIdentifier, &logutils.FieldArgs{"code": usernameCode, "identifier": username}, err)
+	}
+
+	err = a.storage.InsertAccountIdentifier(context, *usernameIdentifier)
+	if err != nil {
+		return false, errors.WrapErrorAction(logutils.ActionInsert, model.TypeAccountIdentifier, &logutils.FieldArgs{"code": usernameCode, "identifier": username}, err)
+	}
+	return true, nil
 }
 
 // DeleteAccount deletes an account for the given id

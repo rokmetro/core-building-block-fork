@@ -77,7 +77,7 @@ func (a *usernameIdentifierImpl) withIdentifier(creds string) (identifierType, e
 	return &usernameIdentifierImpl{auth: a.auth, code: a.code, identifier: username}, nil
 }
 
-func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appName string) (string, *model.AccountIdentifier, error) {
+func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appOrg model.ApplicationOrganization, explicitVerify bool) (string, *model.AccountIdentifier, error) {
 	if a.identifier == "" {
 		return "", nil, errors.ErrorData(logutils.StatusMissing, "username identifier", nil)
 	}
@@ -90,17 +90,13 @@ func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appName stri
 	}
 
 	accountIdentifier := model.AccountIdentifier{ID: uuid.NewString(), Code: a.code, Identifier: a.identifier, Verified: true,
-		Account: model.Account{ID: accountIDStr}, DateCreated: time.Now().UTC()}
+		Linked: accountID != nil, Account: model.Account{ID: accountIDStr}, DateCreated: time.Now().UTC()}
 
 	return "", &accountIdentifier, nil
 }
 
 func (a *usernameIdentifierImpl) maskIdentifier() (string, error) {
 	return a.identifier, nil
-}
-
-func (a *usernameIdentifierImpl) requireVerificationForSignIn() bool {
-	return true
 }
 
 func (a *usernameIdentifierImpl) checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error {

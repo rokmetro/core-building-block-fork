@@ -202,11 +202,13 @@ type AccessTokenExpirationPolicy struct {
 
 // Account defines model for Account.
 type Account struct {
-	Anonymous *bool                    `json:"anonymous,omitempty"`
-	AppOrg    *ApplicationOrganization `json:"app_org"`
-	Apps      *[]PartialApp            `json:"apps,omitempty"`
-	AuthTypes *[]AccountAuthType       `json:"auth_types,omitempty"`
-	Devices   *[]Device                `json:"devices,omitempty"`
+	Anonymous   *bool                    `json:"anonymous,omitempty"`
+	AppOrg      *ApplicationOrganization `json:"app_org"`
+	Apps        *[]PartialApp            `json:"apps,omitempty"`
+	AuthTypes   *[]AccountAuthType       `json:"auth_types,omitempty"`
+	DateCreated *string                  `json:"date_created,omitempty"`
+	DateUpdated *string                  `json:"date_updated,omitempty"`
+	Devices     *[]Device                `json:"devices,omitempty"`
 	// Deprecated:
 	ExternalIds             *map[string]interface{} `json:"external_ids,omitempty"`
 	Groups                  *[]AppOrgGroup          `json:"groups,omitempty"`
@@ -225,7 +227,7 @@ type Account struct {
 	System                  *bool                   `json:"system,omitempty"`
 	SystemConfigs           *map[string]interface{} `json:"system_configs,omitempty"`
 	// Deprecated:
-	Username *string `json:"username,omitempty"`
+	Username *string `json:"username"`
 	Verified *bool   `json:"verified,omitempty"`
 }
 

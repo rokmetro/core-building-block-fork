@@ -48,13 +48,10 @@ type identifierType interface {
 	// Returns:
 	//	message (string): response message
 	//	accountIdentifier (*model.AccountIdentifier): the new account identifier
-	buildIdentifier(accountID *string, appName string) (string, *model.AccountIdentifier, error)
+	buildIdentifier(accountID *string, appOrg model.ApplicationOrganization, explicitVerify bool) (string, *model.AccountIdentifier, error)
 
 	// masks the cached identifier
 	maskIdentifier() (string, error)
-
-	// gives whether the identifier must be verified before sign-in is allowed
-	requireVerificationForSignIn() bool
 
 	// checks whether the given account identifier is verified, restarts verification if necessary and possible
 	checkVerified(accountIdentifier *model.AccountIdentifier, appName string) error
@@ -72,7 +69,7 @@ type authCommunicationChannel interface {
 	//sends the verification code to the identifier
 	// Returns:
 	//	sentCode (bool): whether the verification code was sent successfully
-	sendVerifyIdentifier(accountIdentifier *model.AccountIdentifier, appName string) (bool, error)
+	sendVerifyIdentifier(accountIdentifier *model.AccountIdentifier, appOrg model.ApplicationOrganization, explicitVerify bool) (bool, error)
 
 	//restarts the identifier verification
 	restartIdentifierVerification(accountIdentifier *model.AccountIdentifier, appName string) error
@@ -461,6 +458,11 @@ type APIs interface {
 	LinkAccountIdentifier(accountID string, identifierJSON string, admin bool, l *logs.Log) (*string, *model.Account, error)
 
 	UnlinkAccountIdentifier(accountID string, accountIdentifierID string, admin bool, l *logs.Log) (*model.Account, error)
+
+	//AddAccountUsername attempts to add the given username to the given account as a new account identifier
+	//	Returns:
+	//		added (bool): whether the username identifier was added to the account
+	AddAccountUsername(context storage.TransactionContext, account *model.Account, username string) (bool, error)
 
 	//InitializeSystemAccount initializes the first system account
 	InitializeSystemAccount(context storage.TransactionContext, authType model.AuthType, appOrg model.ApplicationOrganization, allSystemPermission string, email string, password string, clientVersion string, l *logs.Log) (string, error)
