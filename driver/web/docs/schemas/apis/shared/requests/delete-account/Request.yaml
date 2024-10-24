@@ -1,9 +1,9 @@
 required:
   - app_id
-  - org_id
 type: object
 properties:
   app_id:
+    writeOnly: true
     type: string
-  org_id:
-    type: string
+  context:
+    type: object

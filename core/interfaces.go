@@ -17,6 +17,7 @@ package core
 import (
 	"core-building-block/core/model"
 	"core-building-block/driven/storage"
+	"time"
 
 	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
 	"github.com/rokwire/logging-library-go/v2/logs"
@@ -24,15 +25,14 @@ import (
 
 // Services exposes APIs for the driver adapters
 type Services interface {
-	SerDeleteAccount(id string) error
-	SerGetAccount(accountID string) (*model.Account, error)
-	SerGetProfile(accountID string) (*model.Profile, error)
-	SerGetPreferences(accountID string) (map[string]interface{}, error)
-	SerGetAccountSystemConfigs(accountID string) (map[string]interface{}, error)
+	SerGetAccount(cOrgID string, cAppID string, accountID string) (*model.Account, error)
+	SerGetProfile(accountID string) (*model.Profile, *string, *string, error)
+	SerGetPreferences(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error)
+	SerGetAccountSystemConfigs(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error)
 	SerUpdateAccountPreferences(id string, appID string, orgID string, anonymous bool, preferences map[string]interface{}, l *logs.Log) (bool, error)
 	SerUpdateAccountProfile(accountID string, profile model.Profile) error
 	SerUpdateAccountPrivacy(accountID string, privacy model.Privacy) error
-	SerUpdateAccountSecrets(accountID string, secrets map[string]interface{}) error
+	SerUpdateAccountSecrets(accountID string, appID string, orgID string, secrets map[string]interface{}) error
 	SerUpdateAccountUsername(accountID string, appID string, orgID string, username string) error
 
 	SerGetAccounts(limit int, offset int, appID string, orgID string, accountID *string, firstName *string, lastName *string, authType *string,
@@ -82,9 +82,9 @@ type Administration interface {
 
 	AdmGetAccounts(limit int, offset int, appID string, orgID string, accountID *string, firstName *string, lastName *string, authType *string,
 		authTypeIdentifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
-	AdmGetAccount(accountID string) (*model.Account, error)
+	AdmGetAccount(cOrgID string, cAppID string, accountID string) (*model.Account, error)
 
-	AdmGetFilterAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error)
+	AdmGetFilterAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	AdmGetFilterAccountsCount(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
 
 	AdmUpdateAccountUsername(accountID string, appID string, orgID string, username string) error
@@ -120,15 +120,18 @@ type Encryption interface {
 
 // BBs exposes users related APIs used by the platform building blocks
 type BBs interface {
+	BBsGetDeletedOrgAppMemberships(appID string, orgID string, serviceID string, startTime *time.Time) (map[model.AppOrgPair][]model.DeletedOrgAppMembership, error)
+
 	BBsGetTest() string
 
-	BBsGetAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error)
+	BBsGetAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	BBsGetAccountsCount(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
+	BBsGetFerpaAccounts(ids []string) ([]string, error)
 }
 
 // TPS exposes user related APIs used by third-party services
 type TPS interface {
-	TPSGetAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error)
+	TPSGetAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	TPSGetAccountsCount(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
 }
 
@@ -144,8 +147,8 @@ type System interface {
 	SysGetOrganization(ID string) (*model.Organization, error)
 	SysUpdateOrganization(ID string, name string, requestType string, organizationDomains []string) error
 
-	SysCreateApplication(name string, multiTenant bool, admin bool, sharedIdentities bool, appTypes []model.ApplicationType) (*model.Application, error)
-	SysUpdateApplication(ID string, name string, multiTenant bool, admin bool, sharedIdentities bool, appTypes []model.ApplicationType) error
+	SysCreateApplication(name string, multiTenant bool, admin bool, appTypes []model.ApplicationType) (*model.Application, error)
+	SysUpdateApplication(ID string, name string, multiTenant bool, admin bool, appTypes []model.ApplicationType) error
 	SysGetApplication(ID string) (*model.Application, error)
 	SysGetApplications() ([]model.Application, error)
 
@@ -168,32 +171,39 @@ type Storage interface {
 	InsertFollow(context storage.TransactionContext, follow model.Follow) error
 	DeleteFollow(context storage.TransactionContext, appID string, orgID string, followingID string, followerID string) error
 
-	FindAccountByID(context storage.TransactionContext, id string) (*model.Account, error)
+	FindAccountByID(context storage.TransactionContext, cOrgID *string, cAppID *string, id string) (*model.Account, error)
 	FindAccounts(context storage.TransactionContext, limit *int, offset *int, appID string, orgID string, accountID *string, firstName *string, lastName *string, authType *string,
 		identifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
 	FindPublicAccounts(context storage.TransactionContext, appID string, orgID string, limit *int, offset *int,
 		search *string, firstName *string, lastName *string, username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error)
-	FindAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error)
+	FindAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	CountAccountsByParams(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
 	FindAccountsByAccountID(context storage.TransactionContext, appID string, orgID string, accountIDs []string) ([]model.Account, error)
 	FindAccountsByUsername(context storage.TransactionContext, appOrg *model.ApplicationOrganization, username string) ([]model.Account, error)
+	FindDeletedOrgAppMemberships(appID string, orgID string, startTime *time.Time) ([]model.DeletedOrgAppMembership, error)
+	SaveAccount(context storage.TransactionContext, account *model.Account) error
 
-	UpdateAccountPreferences(context storage.TransactionContext, accountID string, preferences map[string]interface{}) error
-	UpdateAccountSecrets(context storage.TransactionContext, accountID string, secrets map[string]interface{}) error
+	UpdateAccountPreferences(context storage.TransactionContext, cOrgID string, cAppID string, accountID string, preferences map[string]interface{}) error
+	UpdateAccountSecrets(context storage.TransactionContext, cOrgID string, cAppID string, accountID string, secrets map[string]interface{}) error
 	UpdateAccountSystemConfigs(context storage.TransactionContext, accountID string, configs map[string]interface{}) error
-	InsertAccountPermissions(context storage.TransactionContext, accountID string, permissions []model.Permission) error
-	DeleteAccountPermissions(context storage.TransactionContext, accountID string, permissionNames []string) error
+	InsertAccountPermissions(context storage.TransactionContext, accountID string, appOrgID string, permissions []model.Permission) error
+	DeleteAccountPermissions(context storage.TransactionContext, accountID string, appOrgID string, permissionNames []string) error
 	UpdateAccountUsername(context storage.TransactionContext, accountID, username string) error
 	UpdateAccountVerified(context storage.TransactionContext, accountID string, appID string, orgID string, verified bool) error
 	InsertAccountRoles(context storage.TransactionContext, accountID string, appOrgID string, roles []model.AccountRole) error
-	DeleteAccountRoles(context storage.TransactionContext, accountID string, roleIDs []string) error
-	InsertAccountsGroup(context storage.TransactionContext, group model.AccountGroup, accountIDs []string) error
-	RemoveAccountsGroup(context storage.TransactionContext, groupID string, accountIDs []string) error
+	DeleteAccountRoles(context storage.TransactionContext, accountID string, appOrgID string, roleIDs []string) error
+	InsertAccountsGroup(context storage.TransactionContext, appOrgID string, group model.AccountGroup, accountIDs []string) error
+	RemoveAccountsGroup(context storage.TransactionContext, appOrgID string, groupID string, accountIDs []string) error
 	CountAccountsByRoleID(roleID string) (*int64, error)
 	CountAccountsByGroupID(groupID string) (*int64, error)
 
-	UpdateAccountProfile(context storage.TransactionContext, profile model.Profile) error
+	UpdateAccountProfile(context storage.TransactionContext, accountID string, profile model.Profile) error
 	UpdateAccountPrivacy(context storage.TransactionContext, accountID string, privacy model.Privacy) error
+	FindFerpaAccountIDs(ids []string) ([]string, error)
+
+	FindCredential(context storage.TransactionContext, ID string) (*model.Credential, error)
+	UpdateCredential(context storage.TransactionContext, creds *model.Credential) error
+	DeleteCredential(context storage.TransactionContext, ID string) error
 
 	FindLoginSessionsByParams(appID string, orgID string, sessionID *string, identifier *string, accountAuthTypeIdentifier *string,
 		appTypeID *string, appTypeIdentifier *string, anonymous *bool, deviceID *string, ipAddress *string) ([]model.LoginSession, error)
@@ -267,6 +277,9 @@ type Storage interface {
 	UpdateApplicationOrganization(context storage.TransactionContext, applicationOrganization model.ApplicationOrganization) error
 
 	InsertAPIKey(context storage.TransactionContext, apiKey model.APIKey) (*model.APIKey, error)
+
+	CheckAuthTypesExists(collectionName string) (bool, error)
+	CreateAuthTypesCollection(collectionName string) error
 }
 
 // StorageListener listenes for change data storage events

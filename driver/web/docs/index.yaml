@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Rokwire Core Building Block API
   description: Core Building Block API Documentation
-  version: 1.34.0
+  version: 1.43.0
 servers:
   - url: https://api.rokwire.illinois.edu/core
     description: Production server
@@ -133,6 +133,8 @@ paths:
     $ref: "./resources/admin/app-configs/organization/configs.yaml"
   /admin/application/accounts:
     $ref: "./resources/admin/application/accounts.yaml"
+  /admin/v2/application/accounts:
+    $ref: "./resources/admin/v2/application/accounts.yaml"
   /admin/application/accounts/{id}/devices:
     $ref: "./resources/admin/application/accounts/devices.yaml"
   /admin/application/accounts/{account_id}/login-sessions/{session_id}:
@@ -191,10 +193,14 @@ paths:
     $ref: "./resources/bbs/access-token.yaml"
   /bbs/access-tokens:
     $ref: "./resources/bbs/access-tokens.yaml"
+  /bbs/deleted-memberships:
+    $ref: "./resources/bbs/deleted-memberships.yaml"
   /bbs/accounts:
     $ref: "./resources/bbs/accounts.yaml"
   /bbs/accounts/count:
    $ref: "./resources/bbs/accounts-count.yaml"
+  /bbs/accounts/ferpa:
+   $ref: "./resources/bbs/ferpa-accountids.yaml"  
 
   #third-party services
   /tps/service-regs:

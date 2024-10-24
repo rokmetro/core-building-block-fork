@@ -1,9 +1,10 @@
 required:
-  - app_id
-  - org_id
+  - id
+  - name
 type: object
 properties:
-  app_id:
+  id:
+    readOnly: true
     type: string
-  org_id:
+  name:
     type: string

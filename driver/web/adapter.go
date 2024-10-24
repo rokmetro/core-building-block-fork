@@ -213,6 +213,7 @@ func (we Adapter) Start() {
 
 	adminSubrouter.HandleFunc("/application/accounts", we.wrapFunc(we.adminApisHandler.getApplicationAccounts, we.auth.application.Permissions)).Methods("GET")
 	adminSubrouter.HandleFunc("/application/accounts", we.wrapFunc(we.adminApisHandler.createAdminAccount, we.auth.application.Permissions)).Methods("POST")
+	adminSubrouter.HandleFunc("/v2/application/accounts", we.wrapFunc(we.adminApisHandler.createApplicationAccounts, we.auth.application.Permissions)).Methods("POST")
 	adminSubrouter.HandleFunc("/application/accounts", we.wrapFunc(we.adminApisHandler.updateAdminAccount, we.auth.application.Permissions)).Methods("PUT")
 
 	adminSubrouter.HandleFunc("/application/filter/accounts", we.wrapFunc(we.adminApisHandler.getFilterAccounts, we.auth.application.Permissions)).Methods("POST")
@@ -242,9 +243,12 @@ func (we Adapter) Start() {
 	bbsSubrouter.HandleFunc("/service-account/{id}", we.wrapFunc(we.bbsApisHandler.getServiceAccountParams, nil)).Methods("POST") //Public
 	bbsSubrouter.HandleFunc("/access-token", we.wrapFunc(we.bbsApisHandler.getServiceAccessToken, nil)).Methods("POST")           //Public
 	bbsSubrouter.HandleFunc("/access-tokens", we.wrapFunc(we.bbsApisHandler.getServiceAccessTokens, nil)).Methods("POST")         //Public
+	bbsSubrouter.HandleFunc("/deleted-memberships", we.wrapFunc(we.bbsApisHandler.getDeletedMemberships, we.auth.bbs.Permissions)).Methods("GET")
 
 	bbsSubrouter.HandleFunc("/accounts", we.wrapFunc(we.bbsApisHandler.getAccounts, we.auth.bbs.Permissions)).Methods("POST")
 	bbsSubrouter.HandleFunc("/accounts/count", we.wrapFunc(we.bbsApisHandler.getAccountsCount, we.auth.bbs.Permissions)).Methods("POST")
+	bbsSubrouter.HandleFunc("/accounts/ferpa", we.wrapFunc(we.bbsApisHandler.getFerpaAccounts, we.auth.bbs.Permissions)).Methods("GET")
+
 	///
 
 	///third-party services ///

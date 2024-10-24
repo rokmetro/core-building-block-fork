@@ -367,7 +367,8 @@ func (h ServicesApisHandler) linkAccountAuthType(l *logs.Log, r *http.Request, c
 		return l.HTTPResponseErrorAction(logutils.ActionMarshal, "params", nil, err, http.StatusBadRequest, true)
 	}
 
-	message, account, err := h.coreAPIs.Auth.LinkAccountAuthType(claims.Subject, string(requestData.AuthType), requestData.AppTypeIdentifier, requestCreds, requestParams, l)
+	message, account, err := h.coreAPIs.Auth.LinkAccountAuthType(claims.OrgID, claims.AppID, claims.Subject,
+		string(requestData.AuthType), requestData.AppTypeIdentifier, requestCreds, requestParams, l)
 	if err != nil {
 		return l.HTTPResponseError("Error linking account auth type", err, http.StatusInternalServerError, true)
 	}
@@ -534,7 +535,31 @@ func (h ServicesApisHandler) getServiceRegistrations(l *logs.Log, r *http.Reques
 }
 
 func (h ServicesApisHandler) deleteAccount(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	err := h.coreAPIs.Services.SerDeleteAccount(claims.Subject)
+	//apps
+	var apps []string
+	appsArg := r.URL.Query().Get("apps")
+	if appsArg != "" {
+		apps = strings.Split(appsArg, ",")
+	} else {
+		apps = append(apps, claims.AppID)
+	}
+
+	var appsWithContext []model.DeletedOrgAppMembership
+	//check if the body is empty
+	if r.Body != nil && r.Body != http.NoBody {
+		var deleteContextBody []Def.SharedReqDeleteAccount
+		err := json.NewDecoder(r.Body).Decode(&deleteContextBody)
+		if err != nil {
+			return l.HTTPResponseErrorAction(logutils.ActionUnmarshal, "app membership delete context", nil, err, http.StatusBadRequest, true)
+		}
+
+		appsWithContext, err = deletedOrgAppMembershipsFromDef(deleteContextBody)
+		if err != nil {
+			return l.HTTPResponseErrorAction(logutils.ActionParse, logutils.TypeRequestBody, nil, err, http.StatusBadRequest, true)
+		}
+	}
+
+	err := h.coreAPIs.Auth.DeleteAccount(claims.Subject, apps, appsWithContext)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionDelete, model.TypeAccount, nil, err, http.StatusInternalServerError, true)
 	}
@@ -543,7 +568,7 @@ func (h ServicesApisHandler) deleteAccount(l *logs.Log, r *http.Request, claims 
 }
 
 func (h ServicesApisHandler) getAccount(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	account, err := h.coreAPIs.Services.SerGetAccount(claims.Subject)
+	account, err := h.coreAPIs.Services.SerGetAccount(claims.OrgID, claims.AppID, claims.Subject)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccount, nil, err, http.StatusInternalServerError, true)
 	}
@@ -714,7 +739,7 @@ func (h ServicesApisHandler) removeMFAType(l *logs.Log, r *http.Request, claims 
 }
 
 func (h ServicesApisHandler) getProfile(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	profile, err := h.coreAPIs.Services.SerGetProfile(claims.Subject)
+	profile, email, phone, err := h.coreAPIs.Services.SerGetProfile(claims.Subject)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeProfile, nil, err, http.StatusInternalServerError, true)
 	}
@@ -722,14 +747,8 @@ func (h ServicesApisHandler) getProfile(l *logs.Log, r *http.Request, claims *to
 	profileResp := profileToDef(profile)
 
 	// maintain backwards compatibility
-	if len(profile.Accounts) == 1 {
-		if emailIdentifier := profile.Accounts[0].GetAccountIdentifier("email", ""); emailIdentifier != nil {
-			profileResp.Email = &emailIdentifier.Identifier
-		}
-		if phoneIdentifier := profile.Accounts[0].GetAccountIdentifier("phone", ""); phoneIdentifier != nil {
-			profileResp.Phone = &phoneIdentifier.Identifier
-		}
-	}
+	profileResp.Email = email
+	profileResp.Phone = phone
 
 	data, err := json.Marshal(profileResp)
 	if err != nil {
@@ -794,7 +813,7 @@ func (h ServicesApisHandler) updateAccountPreferences(l *logs.Log, r *http.Reque
 }
 
 func (h ServicesApisHandler) getPreferences(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	preferences, err := h.coreAPIs.Services.SerGetPreferences(claims.Subject)
+	preferences, err := h.coreAPIs.Services.SerGetPreferences(claims.OrgID, claims.AppID, claims.Subject)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccountPreferences, nil, err, http.StatusInternalServerError, true)
 	}
@@ -816,7 +835,7 @@ func (h ServicesApisHandler) updateAccountSecrets(l *logs.Log, r *http.Request, 
 		return l.HTTPResponseErrorAction(logutils.ActionUnmarshal, "account secrets update request", nil, err, http.StatusBadRequest, true)
 	}
 
-	err = h.coreAPIs.Services.SerUpdateAccountSecrets(claims.Subject, secrets)
+	err = h.coreAPIs.Services.SerUpdateAccountSecrets(claims.Subject, claims.AppID, claims.OrgID, secrets)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionUpdate, model.TypeAccountSecrets, nil, err, http.StatusInternalServerError, true)
 	}
@@ -825,7 +844,7 @@ func (h ServicesApisHandler) updateAccountSecrets(l *logs.Log, r *http.Request, 
 }
 
 func (h ServicesApisHandler) getAccountSystemConfigs(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	configs, err := h.coreAPIs.Services.SerGetAccountSystemConfigs(claims.Subject)
+	configs, err := h.coreAPIs.Services.SerGetAccountSystemConfigs(claims.OrgID, claims.AppID, claims.Subject)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccountSystemConfigs, nil, err, http.StatusInternalServerError, true)
 	}
@@ -951,7 +970,7 @@ func (h ServicesApisHandler) getAccounts(l *logs.Log, r *http.Request, claims *t
 		return l.HTTPResponseErrorAction("error finding accounts", model.TypeAccount, nil, err, http.StatusInternalServerError, true)
 	}
 
-	response := partialAccountsToDef(accounts)
+	response := partialAccountsToDef(accounts, nil)
 
 	data, err := json.Marshal(response)
 	if err != nil {
@@ -1052,13 +1071,13 @@ func (h ServicesApisHandler) addFollow(l *logs.Log, r *http.Request, claims *tok
 	}
 
 	// Check to make sure account exists
-	account, err := h.coreAPIs.Services.SerGetAccount(follow.FollowingId)
+	account, err := h.coreAPIs.Services.SerGetAccount(claims.OrgID, claims.AppID, follow.FollowingId)
 	if err != nil || account == nil {
 		return l.HTTPResponseErrorAction(logutils.ActionInsert, model.TypeFollow, nil, err, http.StatusBadRequest, true)
 	}
 
 	// Check to make sure follower account is public
-	followerAccount, err := h.coreAPIs.Services.SerGetAccount(claims.Subject)
+	followerAccount, err := h.coreAPIs.Services.SerGetAccount(claims.OrgID, claims.AppID, claims.Subject)
 	if err != nil || followerAccount == nil || !followerAccount.Privacy.Public {
 		return l.HTTPResponseErrorAction(logutils.ActionInsert, model.TypeFollow, nil, err, http.StatusBadRequest, true)
 	}

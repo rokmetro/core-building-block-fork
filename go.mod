@@ -2,8 +2,6 @@ module core-building-block
 
 go 1.23
 
-toolchain go1.23.0
-
 require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/getkin/kin-openapi v0.127.0

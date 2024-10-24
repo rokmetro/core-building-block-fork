@@ -18,14 +18,72 @@ import (
 	"core-building-block/core/model"
 	Def "core-building-block/driver/web/docs/gen"
 	"core-building-block/utils"
+
+	"github.com/rokwire/logging-library-go/v2/errors"
+	"github.com/rokwire/logging-library-go/v2/logutils"
 )
+
+// PartialApp
+func partialAppToDef(item model.Application) Def.PartialApp {
+
+	return Def.PartialApp{Id: &item.ID, Name: item.Name}
+}
+
+func partialAppsToDef(item []model.Application) []Def.PartialApp {
+	result := make([]Def.PartialApp, len(item))
+	for i, item := range item {
+		result[i] = partialAppToDef(item)
+	}
+	return result
+}
+
+// DeletedMemberships
+func deletedMembershipsMapToDef(memberships map[model.AppOrgPair][]model.DeletedOrgAppMembership) []Def.DeletedAppOrgMembership {
+	result := make([]Def.DeletedAppOrgMembership, 0)
+	for appOrgPair, orgAppMemberships := range memberships {
+		result = append(result, Def.DeletedAppOrgMembership{AppId: appOrgPair.AppID, OrgId: appOrgPair.OrgID, Memberships: deletedMembershipsToDef(orgAppMemberships)})
+	}
+	return result
+}
+
+// DeletedOrgAppMembership
+func deletedOrgAppMembershipsFromDef(items []Def.SharedReqDeleteAccount) ([]model.DeletedOrgAppMembership, error) {
+	result := make([]model.DeletedOrgAppMembership, len(items))
+	for i, item := range items {
+		if item.AppId == nil {
+			return nil, errors.ErrorData(logutils.StatusMissing, "app_id", nil)
+		}
+		result[i] = deletedOrgAppMMembershipFromDef(item)
+	}
+	return result, nil
+}
+
+func deletedOrgAppMMembershipFromDef(item Def.SharedReqDeleteAccount) model.DeletedOrgAppMembership {
+	var context map[string]interface{}
+	if item.Context != nil {
+		context = *item.Context
+	}
+	return model.DeletedOrgAppMembership{AppOrg: model.ApplicationOrganization{Application: model.Application{ID: *item.AppId}}, Context: context}
+}
+
+func deletedMembershipsToDef(items []model.DeletedOrgAppMembership) []Def.DeletedMembership {
+	result := make([]Def.DeletedMembership, len(items))
+	for i, item := range items {
+		var context *map[string]interface{}
+		if item.Context != nil {
+			context = &item.Context
+		}
+		result[i] = Def.DeletedMembership{AccountId: &item.AccountID, ExternalIds: &item.ExternalIDs, Context: context}
+	}
+	return result
+}
 
 // Application
 func applicationToDef(item model.Application) Def.Application {
 	types := applicationTypeListToDef(item.Types)
 
-	return Def.Application{Id: &item.ID, Name: item.Name, MultiTenant: item.MultiTenant, Admin: item.Admin,
-		SharedIdentities: item.SharedIdentities, Types: &types}
+	return Def.Application{Id: &item.ID, Name: item.Name, MultiTenant: item.MultiTenant,
+		Admin: item.Admin, Types: &types}
 }
 
 func applicationsToDef(item []model.Application) []Def.Application {
@@ -146,7 +204,7 @@ func appOrgFromDef(item *Def.ApplicationOrganization) *model.ApplicationOrganiza
 
 	identityProviderSettings := identityProviderSettingsFromDef(item.IdentityProviderSettings)
 	supportedAuthTypes := supportedAuthTypesFromDef(item.SupportedAuthTypes)
-	loginsSessionsSetting := loginSessionSettingsFromDef(item.LoginSessionSettings)
+	loginsSessionsSetting := loginSessionSettingsFromDef(item.LoginsSessionSettings)
 
 	return &model.ApplicationOrganization{ID: id, ServicesIDs: serviceIds, IdentityProvidersSettings: identityProviderSettings, SupportedAuthTypes: supportedAuthTypes, LoginsSessionsSetting: *loginsSessionsSetting}
 }
@@ -162,7 +220,8 @@ func appOrgToDef(item *model.ApplicationOrganization) *Def.ApplicationOrganizati
 	id := item.ID
 	serviceIDs := item.ServicesIDs
 	return &Def.ApplicationOrganization{Id: &id, AppId: item.Application.ID, OrgId: item.Organization.ID, ServicesIds: &serviceIDs,
-		IdentityProviderSettings: &identityProviderSettings, SupportedAuthTypes: &supportedAuthTypes, LoginSessionSettings: &loginsSessionsSetting}
+		IdentityProviderSettings: &identityProviderSettings,
+		SupportedAuthTypes:       &supportedAuthTypes, LoginsSessionSettings: &loginsSessionsSetting}
 }
 
 func appOrgsToDef(items []model.ApplicationOrganization) []Def.ApplicationOrganization {
@@ -357,6 +416,10 @@ func identityProviderSettingFromDef(item *Def.IdentityProviderSettings) *model.I
 	if item.EmailField != nil {
 		emailField = *item.EmailField
 	}
+	var ferpaField string
+	if item.FerpaField != nil {
+		ferpaField = *item.FerpaField
+	}
 	var rolesField string
 	if item.RolesField != nil {
 		rolesField = *item.RolesField
@@ -398,11 +461,16 @@ func identityProviderSettingFromDef(item *Def.IdentityProviderSettings) *model.I
 		identityBBBaseURL = *item.IdentityBbBaseUrl
 	}
 
+	var adminAppAccessRoles []string
+	if item.AdminAppAccessRoles != nil {
+		adminAppAccessRoles = *item.AdminAppAccessRoles
+	}
+
 	return &model.IdentityProviderSetting{IdentityProviderID: item.IdentityProviderId, UserIdentifierField: item.UserIdentifierField,
 		ExternalIDFields: externalIDFields, SensitiveExternalIDs: sensitiveExternalIDs, IsEmailVerified: isEmailVerified,
 		FirstNameField: firstNameField, MiddleNameField: middleNameField, LastNameField: lastNameField, EmailField: emailField, RolesField: rolesField,
 		GroupsField: groupsField, UserSpecificFields: userSpecificFields, Roles: roles, Groups: groups, AlwaysSyncProfile: alwaysSyncProfile,
-		IdentityBBBaseURL: identityBBBaseURL}
+		IdentityBBBaseURL: identityBBBaseURL, AdminAppAccessRoles: adminAppAccessRoles, FerpaField: ferpaField}
 }
 
 func identityProviderSettingsToDef(items []model.IdentityProviderSetting) []Def.IdentityProviderSettings {
@@ -439,11 +507,19 @@ func identityProviderSettingToDef(item *model.IdentityProviderSetting) *Def.Iden
 	userSpecificFields := item.UserSpecificFields
 	alwaysSyncProfile := item.AlwaysSyncProfile
 	identityBBBaseURL := item.IdentityBBBaseURL
+	var adminAppAccessRoles []string
+	if item.AdminAppAccessRoles != nil {
+		adminAppAccessRoles = item.AdminAppAccessRoles
+	} else {
+		adminAppAccessRoles = []string{}
+	}
+	ferpaField := item.FerpaField
+
 	return &Def.IdentityProviderSettings{IdentityProviderId: item.IdentityProviderID, UserIdentifierField: item.UserIdentifierField,
 		ExternalIdFields: &externalIDs, SensitiveExternalIds: &sensitiveExternalIDs, IsEmailVerified: &isEmailVerified,
 		FirstNameField: &firstNameField, MiddleNameField: &middleNameField, LastNameField: &lastNameField, EmailField: &emailField, RolesField: &rolesField,
 		GroupsField: &groupsField, UserSpecificFields: &userSpecificFields, Roles: &roles, Groups: &groups, AlwaysSyncProfile: &alwaysSyncProfile,
-		IdentityBbBaseUrl: &identityBBBaseURL}
+		IdentityBbBaseUrl: &identityBBBaseURL, AdminAppAccessRoles: &adminAppAccessRoles, FerpaField: &ferpaField}
 }
 
 // AppOrgRole

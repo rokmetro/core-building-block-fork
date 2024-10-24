@@ -57,6 +57,10 @@ const (
 	TypeDevice logutils.MessageDataType = "device"
 	//TypeFollow follow
 	TypeFollow logutils.MessageDataType = "follow"
+	//TypeOrgAppMembership org app membership
+	TypeOrgAppMembership logutils.MessageDataType = "org app membership"
+	//TypeDeletedOrgAppMembership deleted org app membership
+	TypeDeletedOrgAppMembership logutils.MessageDataType = "deleted org app membership"
 )
 
 // Privacy represents the privacy options for each account
@@ -64,31 +68,66 @@ type Privacy struct {
 	Public bool `json:"public" bson:"public"`
 }
 
-// Account represents account entity
-//
-//	The account is the user himself or herself.
-//	This is what the person provides to the system so that to use it.
-//
-//	Every account is for an organization within an application
-type Account struct {
-	ID string //this is ID for the account
-
+// OrgAppMembership represents application organization membership entity
+type OrgAppMembership struct {
+	ID     string
 	AppOrg ApplicationOrganization
 
 	Permissions []Permission
 	Roles       []AccountRole
 	Groups      []AccountGroup
-	Scopes      []string
+
+	Secrets     map[string]interface{}
+	Preferences map[string]interface{}
+
+	MostRecentClientVersion *string
+}
+
+// DeletedOrgAppMembership represents a user-deleted OrgAppMembership
+type DeletedOrgAppMembership struct {
+	ID string
+
+	AccountID   string
+	ExternalIDs map[string]string
+
+	AppOrg ApplicationOrganization
+
+	Context map[string]interface{} // some data for other building blocks to consider when deleting some user data for an account app membership
+
+	DateCreated time.Time
+}
+
+// Account represents account entity
+//
+//	The account is the user himself or herself.
+//	This is what the person provides to the system so that to use it.
+//
+//	Every account is for an organization
+type Account struct {
+	ID string //this is ID for the account
+
+	OrgID              string
+	OrgAppsMemberships []OrgAppMembership
+
+	/// Current App Org Membership // we keep this for easier migration to tenant accounts
+	AppOrg                  ApplicationOrganization
+	Permissions             []Permission
+	Roles                   []AccountRole
+	Groups                  []AccountGroup
+	Secrets                 map[string]interface{}
+	Preferences             map[string]interface{}
+	MostRecentClientVersion *string
+	/// End Current App Org Membership
+
+	Scopes []string
 
 	Identifiers []AccountIdentifier
 	AuthTypes   []AccountAuthType
 
 	MFATypes []MFAType
 
-	Preferences   map[string]interface{}
-	Secrets       map[string]interface{}
 	SystemConfigs map[string]interface{}
-	Profile       Profile //one account has one profile, one profile can be shared between many accounts
+	Profile       Profile //one account has one profile
 	Privacy       Privacy
 
 	Devices []Device
@@ -99,9 +138,44 @@ type Account struct {
 	DateCreated time.Time
 	DateUpdated *time.Time
 
-	LastLoginDate           *time.Time
-	LastAccessTokenDate     *time.Time
-	MostRecentClientVersion *string
+	LastLoginDate       *time.Time
+	LastAccessTokenDate *time.Time
+}
+
+// HasAppMembership checks if there is app membership
+func (a Account) HasAppMembership(appOrgID string) bool {
+	if len(a.OrgAppsMemberships) == 0 {
+		return false
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.ID == appOrgID {
+			return true
+		}
+	}
+	return false
+}
+
+// HasApp checks if there is app
+func (a Account) HasApp(appID string) bool {
+	if len(a.OrgAppsMemberships) == 0 {
+		return false
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.Application.ID == appID {
+			return true
+		}
+	}
+	return false
+}
+
+// SetCurrentMembership sets current membership
+func (a *Account) SetCurrentMembership(current OrgAppMembership) {
+	a.AppOrg = current.AppOrg
+	a.Permissions = current.Permissions
+	a.Roles = current.Roles
+	a.Groups = current.Groups
+	a.Preferences = current.Preferences
+	a.MostRecentClientVersion = current.MostRecentClientVersion
 }
 
 // GetAccountAuthTypeByID finds account auth type by id
@@ -184,6 +258,17 @@ func (a Account) GetExternalAccountIdentifiers() []AccountIdentifier {
 		}
 	}
 	return identifiers
+}
+
+// GetExternalIDsMap returns a map of external ids for this account
+func (a Account) GetExternalIDsMap() map[string]string {
+	externalIDs := make(map[string]string)
+	for _, id := range a.Identifiers {
+		if id.AccountAuthTypeID != nil {
+			externalIDs[id.Code] = id.Identifier
+		}
+	}
+	return externalIDs
 }
 
 // SortAccountIdentifiers sorts account identifiers by matching the given identifier
@@ -532,8 +617,6 @@ type Profile struct {
 	State     string
 	Country   string
 
-	Accounts []Account //the users can share profiles between their applications accounts for some applications
-
 	DateCreated time.Time
 	DateUpdated *time.Time
 
@@ -660,6 +743,7 @@ type ExternalSystemUser struct {
 	Email      string   `json:"email" bson:"email"`
 	Roles      []string `json:"roles" bson:"roles"`
 	Groups     []string `json:"groups" bson:"groups"`
+	Ferpa      bool     `json:"ferpa" bson:"ferpa"`
 
 	//here are the system specific data for the user - uiucedu_uin etc
 	SystemSpecific map[string]interface{} `json:"system_specific" bson:"system_specific"`
@@ -683,6 +767,9 @@ func (esu ExternalSystemUser) Equals(other ExternalSystemUser) bool {
 		return false
 	}
 	if esu.Email != other.Email {
+		return false
+	}
+	if esu.Ferpa != other.Ferpa {
 		return false
 	}
 	if !utils.DeepEqual(esu.Roles, other.Roles) {
@@ -729,4 +816,18 @@ type Follow struct {
 	FollowerID  string    `json:"follower_id" bson:"follower_id"`
 	FollowingID string    `json:"following_id" bson:"following_id"`
 	DateCreated time.Time `json:"date_created" bson:"date_created"`
+}
+
+// AccountData shows AccountData information
+type AccountData struct {
+	AuthType    string    `json:"auth_type"`
+	GroupIds    *[]string `json:"group_ids,omitempty"`
+	Identifier  string    `json:"identifier"`
+	Permissions *[]string `json:"permissions,omitempty"`
+	Privacy     *Privacy  `json:"privacy"`
+	Profile     *Profile  `json:"profile"`
+	RoleIds     *[]string `json:"role_ids,omitempty"`
+	Scopes      *[]string `json:"scopes,omitempty"`
+	AppID       string    `json:"app_id"`
+	OrgID       string    `json:"org_id"`
 }
