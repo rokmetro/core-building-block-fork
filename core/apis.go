@@ -307,6 +307,7 @@ func NewCoreAPIs(env string, version string, build string, serviceID string, sto
 	verifyWaitTime int, verifyExpiry int, logger *logs.Logger) *APIs {
 	//add application instance
 	listeners := []ApplicationListener{}
+
 	application := application{env: env, version: version, build: build, serviceID: serviceID, storage: storage, listeners: listeners, auth: auth}
 
 	//add coreAPIs instance
@@ -332,10 +333,6 @@ func NewCoreAPIs(env string, version string, build string, serviceID string, sto
 // servicesImpl
 type servicesImpl struct {
 	app *application
-}
-
-func (s *servicesImpl) SerDeleteAccount(id string, apps []string) error {
-	return s.app.serDeleteAccount(id, apps)
 }
 
 func (s *servicesImpl) SerGetAccount(cOrgID string, cAppID string, accountID string) (*model.Account, error) {
@@ -602,8 +599,16 @@ type bbsImpl struct {
 	app *application
 }
 
+func (s *bbsImpl) BBsGetDeletedOrgAppMemberships(appID string, orgID string, serviceID string, startTime *time.Time) (map[model.AppOrgPair][]model.DeletedOrgAppMembership, error) {
+	return s.app.bbsGetDeletedOrgAppMemberships(appID, orgID, serviceID, startTime)
+}
+
 func (s *bbsImpl) BBsGetTest() string {
 	return s.app.bbsGetTest()
+}
+
+func (s *bbsImpl) BBsGetFerpaAccounts(ids []string) ([]string, error) {
+	return s.app.bbsGetFerpaAccounts(ids)
 }
 
 func (s *bbsImpl) BBsGetAccounts(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error) {

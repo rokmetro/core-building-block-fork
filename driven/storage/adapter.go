@@ -691,7 +691,7 @@ func (sa *Adapter) FindAccounts(context TransactionContext, limit *int, offset *
 	//find app org id
 	appOrg, err := sa.getCachedApplicationOrganization(appID, orgID)
 	if err != nil {
-		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
 	}
 	if appOrg == nil {
 		return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID})
@@ -991,7 +991,7 @@ func (sa *Adapter) FindAccountsByAccountID(context TransactionContext, appID str
 	//find app org id
 	appOrg, err := sa.getCachedApplicationOrganization(appID, orgID)
 	if err != nil {
-		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
 	}
 	if appOrg == nil {
 		return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID})
@@ -1064,6 +1064,68 @@ func (sa *Adapter) FindAccountByID(context TransactionContext, cOrgID *string, c
 	return sa.findAccount(context, "_id", id, currentAppOrgID)
 }
 
+// FindDeletedOrgAppMemberships finds deleted memberships by appID, orgID pair
+func (sa *Adapter) FindDeletedOrgAppMemberships(appID string, orgID string, startTime *time.Time) ([]model.DeletedOrgAppMembership, error) {
+	appOrgIDs, err := sa.getAppOrgIDsByAppOrgPair(appID, orgID)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionGet, "application organization ids", nil, err)
+	}
+
+	filter := bson.D{}
+	if len(appOrgIDs) > 0 {
+		filter = bson.D{primitive.E{Key: "app_org_id", Value: bson.M{"$in": appOrgIDs}}}
+	}
+
+	//start time
+	if startTime != nil {
+		filter = append(filter, bson.E{Key: "date_created", Value: bson.M{"$gte": *startTime}})
+	}
+
+	var memberships []deletedOrgAppMembership
+	err = sa.db.deletedMemberships.Find(filter, &memberships, nil)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeDeletedOrgAppMembership, &logutils.FieldArgs{"app_org_id": appOrgIDs}, err)
+	}
+	if len(memberships) == 0 {
+		return nil, nil
+	}
+
+	//all memberships applications organizations - from cache
+	allAppsOrgs, err := sa.getCachedApplicationOrganizations()
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+	}
+
+	deletedMemberships := deletedMembershipsFromStorage(memberships, allAppsOrgs)
+	return deletedMemberships, nil
+}
+
+// InsertDeletedOrgAppMemberships inserts new deleted memberships
+func (sa *Adapter) InsertDeletedOrgAppMemberships(context TransactionContext, memberships []model.DeletedOrgAppMembership) error {
+	stgMemberships := make([]interface{}, len(memberships))
+	for i, membership := range memberships {
+		stgMemberships[i] = deletedMembershipToStorage(membership)
+	}
+
+	_, err := sa.db.deletedMemberships.InsertManyWithContext(context, stgMemberships, nil)
+	if err != nil {
+		return errors.WrapErrorAction(logutils.ActionInsert, model.TypeDeletedOrgAppMembership, nil, err)
+	}
+
+	return nil
+}
+
+// DeleteDeletedOrgAppsMemberships deletes user-deleted memberships
+func (sa *Adapter) DeleteDeletedOrgAppsMemberships(cutoff time.Time) error {
+	filter := bson.M{"date_created": bson.M{"$lt": cutoff}}
+	_, err := sa.db.deletedMemberships.DeleteMany(filter, nil)
+	if err != nil {
+		return errors.WrapErrorAction(logutils.ActionDelete, model.TypeDeletedOrgAppMembership, nil, err)
+	}
+
+	return nil
+}
+
 // FindAccountByAuthTypeID finds an account by auth type id
 func (sa *Adapter) FindAccountByAuthTypeID(context TransactionContext, id string, currentAppOrgID *string) (*model.Account, error) {
 	return sa.findAccount(context, "auth_types.id", id, currentAppOrgID)
@@ -1096,7 +1158,7 @@ func (sa *Adapter) findAccount(context TransactionContext, key string, id string
 	}
 	appsOrgs, err := sa.getCachedApplicationOrganizationByKeys(membershipsAppsOrgsIDs)
 	if err != nil {
-		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_org_ids": membershipsAppsOrgsIDs}, err)
 	}
 	if len(appsOrgs) != len(account.OrgAppsMemberships) {
 		return nil, errors.ErrorData(logutils.StatusInvalid, "apps orgs memberships count", &logutils.FieldArgs{"app_orgs": len(appsOrgs), "memberships": len(account.OrgAppsMemberships)})
@@ -1154,6 +1216,20 @@ func (sa *Adapter) SaveAccount(context TransactionContext, account *model.Accoun
 	return nil
 }
 
+// DeleteAccount deletes an account
+func (sa *Adapter) DeleteAccount(context TransactionContext, id string) error {
+	filter := bson.M{"_id": id}
+	res, err := sa.db.tenantsAccounts.DeleteOneWithContext(context, filter, nil)
+	if err != nil {
+		return errors.WrapErrorAction(logutils.ActionDelete, model.TypeAccount, nil, err)
+	}
+	if res.DeletedCount != 1 {
+		return errors.ErrorAction(logutils.ActionDelete, model.TypeAccount, logutils.StringArgs("unexpected deleted count"))
+	}
+
+	return nil
+}
+
 // UpdateAccountUsageInfo updates the usage information in accounts
 func (sa *Adapter) UpdateAccountUsageInfo(context TransactionContext, accountID string, updateLoginTime bool, updateAccessTokenTime bool, clientVersion *string) error {
 	filter := bson.D{primitive.E{Key: "_id", Value: accountID}}
@@ -1176,22 +1252,6 @@ func (sa *Adapter) UpdateAccountUsageInfo(context TransactionContext, accountID 
 	}
 	if res.ModifiedCount != 1 {
 		return errors.ErrorAction(logutils.ActionUpdate, model.TypeAccountUsageInfo, &logutils.FieldArgs{"unexpected modified count": res.ModifiedCount})
-	}
-
-	return nil
-}
-
-// DeleteAccount deletes an account
-func (sa *Adapter) DeleteAccount(context TransactionContext, id string) error {
-	//TODO - we have to decide what we do on delete user operation - removing all user relations, (or) mark the user disabled etc
-
-	filter := bson.M{"_id": id}
-	res, err := sa.db.tenantsAccounts.DeleteOneWithContext(context, filter, nil)
-	if err != nil {
-		return errors.WrapErrorAction(logutils.ActionDelete, model.TypeAccount, nil, err)
-	}
-	if res.DeletedCount != 1 {
-		return errors.ErrorAction(logutils.ActionDelete, model.TypeAccount, logutils.StringArgs("unexpected deleted count"))
 	}
 
 	return nil
@@ -1783,29 +1843,20 @@ func (sa *Adapter) DeleteAccountRoles(context TransactionContext, accountID stri
 	return nil
 }
 
-// DeleteOrgAppsMemberships deletes org apps memberships from the account
-func (sa *Adapter) DeleteOrgAppsMemberships(context TransactionContext, accountID string, membershipsIDs []string) error {
-	//filter
-	filter := bson.D{
-		primitive.E{Key: "_id", Value: accountID},
-	}
-
-	// update
+// DeleteOrgAppsMemberships deletes orgAppMemberships from the account for the given accountID
+func (sa *Adapter) DeleteOrgAppsMemberships(context TransactionContext, accountID string, membershipIDs []string) error {
+	filter := bson.D{primitive.E{Key: "_id", Value: accountID}}
 	update := bson.D{
 		primitive.E{Key: "$pull", Value: bson.D{
-			primitive.E{Key: "org_apps_memberships", Value: bson.M{"id": bson.M{"$in": membershipsIDs}}},
-		}},
-		primitive.E{Key: "$set", Value: bson.D{
-			primitive.E{Key: "date_updated", Value: time.Now().UTC()},
+			primitive.E{Key: "org_apps_memberships", Value: bson.M{"id": bson.M{"$in": membershipIDs}}},
 		}},
 	}
-	res, err := sa.db.tenantsAccounts.UpdateOneWithContext(context, filter, update, nil)
+
+	_, err := sa.db.tenantsAccounts.UpdateOneWithContext(context, filter, update, nil)
 	if err != nil {
-		return errors.WrapErrorAction(logutils.ActionUpdate, model.TypeAccount, &logutils.FieldArgs{"_id": accountID}, err)
+		return errors.WrapErrorAction(logutils.ActionUpdate, model.TypeAccount, &logutils.FieldArgs{"id": accountID, "membership_ids": membershipIDs}, err)
 	}
-	if res.ModifiedCount != 1 {
-		return errors.ErrorAction(logutils.ActionUpdate, model.TypeAccount, &logutils.FieldArgs{"_id": accountID, "modified": res.ModifiedCount, "expected": 1})
-	}
+
 	return nil
 }
 
@@ -3639,6 +3690,31 @@ func (sa *Adapter) CreateAuthTypesCollection(collectionName string) error {
 	// You can perform additional configuration or operations on the collection if needed
 	sa.logger.Infof("Collection %s created in database %s\n", collectionName, dbName)
 	return nil
+}
+
+// FindFerpaAccountIDs finds accounts with ferpa is true
+func (sa *Adapter) FindFerpaAccountIDs(ids []string) ([]string, error) {
+	filter := bson.M{
+		"_id":                          bson.M{"$in": ids}, // _id must be in the list of ids
+		"auth_types.params.user.ferpa": true,               // fеrpa must be true
+	}
+
+	type ferpaAccountIDResponse struct {
+		ID string `bson:"_id"`
+	}
+
+	var ferpaAccountIDs []ferpaAccountIDResponse
+	err := sa.db.tenantsAccounts.Find(filter, &ferpaAccountIDs, nil)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionFind, "", &logutils.FieldArgs{}, err)
+	}
+
+	idsFerpa := []string{}
+	for _, j := range ferpaAccountIDs {
+		idsFerpa = append(idsFerpa, j.ID)
+	}
+
+	return idsFerpa, nil
 }
 
 func (sa *Adapter) getFilterForParams(params map[string]interface{}) bson.M {

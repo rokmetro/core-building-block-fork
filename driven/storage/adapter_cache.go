@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rokwire/core-auth-library-go/v3/authutils"
 	"github.com/rokwire/logging-library-go/v2/errors"
 	"github.com/rokwire/logging-library-go/v2/logutils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -226,6 +227,7 @@ func (sa *Adapter) setCachedAuthTypes(authProviders []model.AuthType) {
 	for _, authType := range authProviders {
 		err := validate.Struct(authType)
 		if err == nil {
+			//we will get it by id and code as well
 			sa.setCachedAuthType(authType)
 		} else {
 			sa.logger.Errorf("failed to validate and cache auth type with code %s: %s", authType.Code, err.Error())
@@ -658,6 +660,75 @@ func (sa *Adapter) getCachedApplicationOrganizations() ([]model.ApplicationOrgan
 	return appOrgList, err
 }
 
+func (sa *Adapter) getCachedApplicationOrganizationsByKeySubstring(substring string) ([]model.ApplicationOrganization, error) {
+	sa.applicationsOrganizationsLock.RLock()
+	defer sa.applicationsOrganizationsLock.RUnlock()
+
+	var err error
+	appOrgList := make([]model.ApplicationOrganization, 0)
+	sa.cachedApplicationsOrganizations.Range(func(key, item interface{}) bool {
+		errArgs := &logutils.FieldArgs{"key": key}
+
+		keyStr, ok := key.(string)
+		if !ok {
+			err = errors.ErrorData(logutils.StatusInvalid, "key", errArgs)
+			return false
+		}
+
+		if item == nil {
+			err = errors.ErrorData(logutils.StatusInvalid, model.TypeApplicationOrganization, errArgs)
+			return false
+		}
+
+		appOrg, ok := item.(model.ApplicationOrganization)
+		if !ok {
+			err = errors.ErrorAction(logutils.ActionCast, model.TypeApplicationOrganization, errArgs)
+			return false
+		}
+
+		if strings.Contains(keyStr, substring) {
+			appOrgList = append(appOrgList, appOrg)
+		}
+
+		return true
+	})
+
+	return appOrgList, err
+}
+
+func (sa *Adapter) getAppOrgIDsByAppOrgPair(appID string, orgID string) ([]string, error) {
+	if appID != authutils.AllApps && orgID != authutils.AllOrgs {
+		appOrg, err := sa.getCachedApplicationOrganization(appID, orgID)
+		if err != nil {
+			return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
+		}
+		if appOrg == nil {
+			return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID})
+		}
+
+		return []string{appOrg.ID}, nil
+	}
+
+	key := strings.ReplaceAll(fmt.Sprintf("%s_%s", appID, orgID), authutils.AllApps, "")
+	if key != "_" {
+		appOrgs, err := sa.getCachedApplicationOrganizationsByKeySubstring(key)
+		if err != nil {
+			return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"key": key}, err)
+		}
+		if len(appOrgs) == 0 {
+			return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"key": key})
+		}
+
+		ids := make([]string, len(appOrgs))
+		for i, appOrg := range appOrgs {
+			ids[i] = appOrg.ID
+		}
+		return ids, nil
+	}
+
+	return nil, nil // nil slice for appID=authutils.AllApps, orgID=authutils.AllOrgs
+}
+
 // APP CONFIGS
 
 // loadAppConfigs loads all application configs
@@ -678,7 +749,10 @@ func (sa *Adapter) loadAppConfigs() ([]model.ApplicationConfig, error) {
 		if item.AppOrgID != nil {
 			appOrg, err = sa.getCachedApplicationOrganizationByKey(*item.AppOrgID)
 			if err != nil {
-				return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+				return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_org_id": *item.AppOrgID}, err)
+			}
+			if appOrg == nil {
+				return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_org_id": *item.AppOrgID})
 			}
 		}
 

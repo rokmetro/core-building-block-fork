@@ -22,6 +22,7 @@ import (
 func orgAppMembershipFromStorage(item orgAppMembership, appOrg model.ApplicationOrganization) model.OrgAppMembership {
 	roles := accountRolesFromStorage(item.Roles, appOrg)
 	groups := accountGroupsFromStorage(item.Groups, appOrg)
+
 	return model.OrgAppMembership{ID: item.ID, AppOrg: appOrg, Permissions: item.Permissions,
 		Roles: roles, Groups: groups, Secrets: item.Secrets, Preferences: item.Preferences,
 		MostRecentClientVersion: item.MostRecentClientVersion}
@@ -59,10 +60,10 @@ func orgAppMembershipToStorage(item model.OrgAppMembership) orgAppMembership {
 	groups := accountGroupsToStorage(item.Groups)
 	secrets := item.Secrets
 	preferences := item.Preferences
-	mostRecentClientVersions := item.MostRecentClientVersion
-	return orgAppMembership{ID: id, AppOrgID: appOrgID,
-		Permissions: permissions, Roles: roles, Groups: groups, Secrets: secrets,
-		Preferences: preferences, MostRecentClientVersion: mostRecentClientVersions}
+	mostRecentClientVersion := item.MostRecentClientVersion
+
+	return orgAppMembership{ID: id, AppOrgID: appOrgID, Permissions: permissions, Roles: roles, Groups: groups,
+		Secrets: secrets, Preferences: preferences, MostRecentClientVersion: mostRecentClientVersion}
 }
 
 func orgAppsMembershipsToStorage(items []model.OrgAppMembership) []orgAppMembership {
@@ -71,6 +72,35 @@ func orgAppsMembershipsToStorage(items []model.OrgAppMembership) []orgAppMembers
 		res[i] = orgAppMembershipToStorage(c)
 	}
 	return res
+}
+
+// DeletedOrgAppMembership
+func deletedMembershipsFromStorage(items []deletedOrgAppMembership, appsOrgs []model.ApplicationOrganization) []model.DeletedOrgAppMembership {
+	if len(items) == 0 {
+		return make([]model.DeletedOrgAppMembership, 0)
+	}
+
+	res := make([]model.DeletedOrgAppMembership, len(items))
+	for i, item := range items {
+		//find the application organization
+		appOrg := model.ApplicationOrganization{ID: item.AppOrgID}
+		for i := range appsOrgs {
+			cAppOrg := appsOrgs[i]
+			if cAppOrg.ID == item.AppOrgID {
+				appOrg = cAppOrg
+				break
+			}
+		}
+
+		res[i] = model.DeletedOrgAppMembership{ID: item.ID, AccountID: item.AccountID,
+			ExternalIDs: item.ExternalIDs, AppOrg: appOrg, Context: item.Context, DateCreated: item.DateCreated}
+	}
+	return res
+}
+
+func deletedMembershipToStorage(item model.DeletedOrgAppMembership) deletedOrgAppMembership {
+	return deletedOrgAppMembership{ID: item.ID, AccountID: item.AccountID, ExternalIDs: item.ExternalIDs,
+		AppOrgID: item.AppOrg.ID, Context: item.Context, DateCreated: item.DateCreated}
 }
 
 // Account

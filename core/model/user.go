@@ -57,6 +57,10 @@ const (
 	TypeDevice logutils.MessageDataType = "device"
 	//TypeFollow follow
 	TypeFollow logutils.MessageDataType = "follow"
+	//TypeOrgAppMembership org app membership
+	TypeOrgAppMembership logutils.MessageDataType = "org app membership"
+	//TypeDeletedOrgAppMembership deleted org app membership
+	TypeDeletedOrgAppMembership logutils.MessageDataType = "deleted org app membership"
 )
 
 // Privacy represents the privacy options for each account
@@ -77,6 +81,20 @@ type OrgAppMembership struct {
 	Preferences map[string]interface{}
 
 	MostRecentClientVersion *string
+}
+
+// DeletedOrgAppMembership represents a user-deleted OrgAppMembership
+type DeletedOrgAppMembership struct {
+	ID string
+
+	AccountID   string
+	ExternalIDs map[string]string
+
+	AppOrg ApplicationOrganization
+
+	Context map[string]interface{} // some data for other building blocks to consider when deleting some user data for an account app membership
+
+	DateCreated time.Time
 }
 
 // Account represents account entity
@@ -148,19 +166,6 @@ func (a Account) HasApp(appID string) bool {
 		}
 	}
 	return false
-}
-
-// GetApps gives the account applications
-func (a Account) GetApps() []Application {
-	if len(a.OrgAppsMemberships) == 0 {
-		return []Application{}
-	}
-
-	res := make([]Application, len(a.OrgAppsMemberships))
-	for i, oam := range a.OrgAppsMemberships {
-		res[i] = oam.AppOrg.Application
-	}
-	return res
 }
 
 // SetCurrentMembership sets current membership
@@ -253,6 +258,17 @@ func (a Account) GetExternalAccountIdentifiers() []AccountIdentifier {
 		}
 	}
 	return identifiers
+}
+
+// GetExternalIDsMap returns a map of external ids for this account
+func (a Account) GetExternalIDsMap() map[string]string {
+	externalIDs := make(map[string]string)
+	for _, id := range a.Identifiers {
+		if id.AccountAuthTypeID != nil {
+			externalIDs[id.Code] = id.Identifier
+		}
+	}
+	return externalIDs
 }
 
 // SortAccountIdentifiers sorts account identifiers by matching the given identifier
@@ -727,6 +743,7 @@ type ExternalSystemUser struct {
 	Email      string   `json:"email" bson:"email"`
 	Roles      []string `json:"roles" bson:"roles"`
 	Groups     []string `json:"groups" bson:"groups"`
+	Ferpa      bool     `json:"ferpa" bson:"ferpa"`
 
 	//here are the system specific data for the user - uiucedu_uin etc
 	SystemSpecific map[string]interface{} `json:"system_specific" bson:"system_specific"`
@@ -750,6 +767,9 @@ func (esu ExternalSystemUser) Equals(other ExternalSystemUser) bool {
 		return false
 	}
 	if esu.Email != other.Email {
+		return false
+	}
+	if esu.Ferpa != other.Ferpa {
 		return false
 	}
 	if !utils.DeepEqual(esu.Roles, other.Roles) {

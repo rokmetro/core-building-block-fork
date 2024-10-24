@@ -243,9 +243,12 @@ func (we Adapter) Start() {
 	bbsSubrouter.HandleFunc("/service-account/{id}", we.wrapFunc(we.bbsApisHandler.getServiceAccountParams, nil)).Methods("POST") //Public
 	bbsSubrouter.HandleFunc("/access-token", we.wrapFunc(we.bbsApisHandler.getServiceAccessToken, nil)).Methods("POST")           //Public
 	bbsSubrouter.HandleFunc("/access-tokens", we.wrapFunc(we.bbsApisHandler.getServiceAccessTokens, nil)).Methods("POST")         //Public
+	bbsSubrouter.HandleFunc("/deleted-memberships", we.wrapFunc(we.bbsApisHandler.getDeletedMemberships, we.auth.bbs.Permissions)).Methods("GET")
 
 	bbsSubrouter.HandleFunc("/accounts", we.wrapFunc(we.bbsApisHandler.getAccounts, we.auth.bbs.Permissions)).Methods("POST")
 	bbsSubrouter.HandleFunc("/accounts/count", we.wrapFunc(we.bbsApisHandler.getAccountsCount, we.auth.bbs.Permissions)).Methods("POST")
+	bbsSubrouter.HandleFunc("/accounts/ferpa", we.wrapFunc(we.bbsApisHandler.getFerpaAccounts, we.auth.bbs.Permissions)).Methods("GET")
+
 	///
 
 	///third-party services ///

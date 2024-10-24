@@ -316,7 +316,7 @@ type ApplicationOrganization struct {
 	AppId                    string                      `json:"app_id"`
 	Id                       *string                     `json:"id,omitempty"`
 	IdentityProviderSettings *[]IdentityProviderSettings `json:"identity_provider_settings"`
-	LoginSessionSettings     *LoginSessionSettings       `json:"login_session_settings,omitempty"`
+	LoginsSessionSettings    *LoginSessionSettings       `json:"logins_session_settings,omitempty"`
 	OrgId                    string                      `json:"org_id"`
 	ServicesIds              *[]string                   `json:"services_ids"`
 	SupportedAuthTypes       *[]SupportedAuthTypes       `json:"supported_auth_types"`
@@ -383,6 +383,20 @@ type Config_Data struct {
 	union json.RawMessage
 }
 
+// DeletedAppOrgMembership defines model for DeletedAppOrgMembership.
+type DeletedAppOrgMembership struct {
+	AppId       string              `json:"app_id"`
+	Memberships []DeletedMembership `json:"memberships"`
+	OrgId       string              `json:"org_id"`
+}
+
+// DeletedMembership defines model for DeletedMembership.
+type DeletedMembership struct {
+	AccountId   *string                 `json:"account_id,omitempty"`
+	Context     *map[string]interface{} `json:"context,omitempty"`
+	ExternalIds *map[string]string      `json:"external_ids"`
+}
+
 // Device defines model for Device.
 type Device struct {
 	DeviceId *string    `json:"device_id"`
@@ -409,9 +423,11 @@ type Follow struct {
 
 // IdentityProviderSettings defines model for IdentityProviderSettings.
 type IdentityProviderSettings struct {
+	AdminAppAccessRoles  *[]string          `json:"admin_app_access_roles,omitempty"`
 	AlwaysSyncProfile    *bool              `json:"always_sync_profile,omitempty"`
 	EmailField           *string            `json:"email_field,omitempty"`
 	ExternalIdFields     *map[string]string `json:"external_id_fields"`
+	FerpaField           *string            `json:"ferpa_field,omitempty"`
 	FirstNameField       *string            `json:"first_name_field,omitempty"`
 	Groups               *map[string]string `json:"groups"`
 	GroupsField          *string            `json:"groups_field,omitempty"`
@@ -1075,6 +1091,12 @@ type SharedReqCredsWebAuthn struct {
 	AdditionalProperties map[string]string `json:"-"`
 }
 
+// SharedReqDeleteAccount defines model for _shared_req_DeleteAccount.
+type SharedReqDeleteAccount struct {
+	AppId   *string                 `json:"app_id,omitempty"`
+	Context *map[string]interface{} `json:"context,omitempty"`
+}
+
 // SharedReqIdentifierString User identifier string
 type SharedReqIdentifierString = string
 
@@ -1474,11 +1496,29 @@ type PostBbsAccountsCountParams struct {
 	OrgId *string `form:"org_id,omitempty" json:"org_id,omitempty"`
 }
 
+// GetBbsAccountsFerpaParams defines parameters for GetBbsAccountsFerpa.
+type GetBbsAccountsFerpaParams struct {
+	// Ids A comma-separated list of ids
+	Ids *string `form:"ids,omitempty" json:"ids,omitempty"`
+}
+
+// GetBbsDeletedMembershipsParams defines parameters for GetBbsDeletedMemberships.
+type GetBbsDeletedMembershipsParams struct {
+	// ServiceId The ID of the service making the request
+	ServiceId string `form:"service_id" json:"service_id"`
+
+	// StartTime The start time for filtering results, specified as a Unix timestamp in seconds
+	StartTime *int64 `form:"start_time,omitempty" json:"start_time,omitempty"`
+}
+
 // GetBbsServiceRegsParams defines parameters for GetBbsServiceRegs.
 type GetBbsServiceRegsParams struct {
 	// Ids A comma-separated list of service IDs to return registrations for
 	Ids string `form:"ids" json:"ids"`
 }
+
+// DeleteServicesAccountJSONBody defines parameters for DeleteServicesAccount.
+type DeleteServicesAccountJSONBody = []SharedReqDeleteAccount
 
 // DeleteServicesAccountParams defines parameters for DeleteServicesAccount.
 type DeleteServicesAccountParams struct {
@@ -1853,6 +1893,9 @@ type PostBbsAccountsCountJSONRequestBody = PostBbsAccountsCountJSONBody
 
 // PostBbsServiceAccountIdJSONRequestBody defines body for PostBbsServiceAccountId for application/json ContentType.
 type PostBbsServiceAccountIdJSONRequestBody = ServicesReqServiceAccountsParams
+
+// DeleteServicesAccountJSONRequestBody defines body for DeleteServicesAccount for application/json ContentType.
+type DeleteServicesAccountJSONRequestBody = DeleteServicesAccountJSONBody
 
 // PostServicesAccountFollowJSONRequestBody defines body for PostServicesAccountFollow for application/json ContentType.
 type PostServicesAccountFollowJSONRequestBody = Follow
