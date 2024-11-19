@@ -63,6 +63,7 @@ type oidcAuthConfig struct {
 	UserInfoURL        string            `json:"userinfo_url"`
 	Scopes             string            `json:"scopes"`
 	RequestParams      map[string]string `json:"request_params"`
+	TokenParams        map[string]string `json:"token_params"`
 	UseRefresh         bool              `json:"use_refresh"`
 	UsePKCE            bool              `json:"use_pkce"`
 	ClientID           string            `json:"client_id" validate:"required"`
@@ -278,6 +279,10 @@ func (a *oidcAuthImpl) newToken(code string, authType model.AuthType, appType mo
 	}
 	if len(params.CodeVerifier) > 0 {
 		bodyData["code_verifier"] = params.CodeVerifier
+	}
+
+	for key, val := range oidcConfig.TokenParams {
+		bodyData[key] = val
 	}
 
 	return a.loadOidcTokensAndInfo(bodyData, oidcConfig, authType, appType, appOrg, redirectURI, l)
