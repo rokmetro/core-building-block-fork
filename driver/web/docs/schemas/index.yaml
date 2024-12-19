@@ -86,6 +86,8 @@ Account:
   $ref: "./user/Account.yaml"
 PublicAccount:
   $ref: "./user/PublicAccount.yaml"
+PublicAccountIdentifier:
+  $ref: "./user/PublicAccountIdentifier.yaml"
 PartialAccount:
   $ref: "./user/PartialAccount.yaml"
 DeletedAppOrgMembership:

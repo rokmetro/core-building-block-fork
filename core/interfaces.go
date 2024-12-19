@@ -26,7 +26,8 @@ import (
 // Services exposes APIs for the driver adapters
 type Services interface {
 	SerGetAccount(cOrgID string, cAppID string, accountID string) (*model.Account, error)
-	SerGetProfile(accountID string) (*model.Profile, *string, *string, error)
+	SerGetProfile(cOrgID string, cAppID string, accountID string) (*model.Profile, *string, *string, error)
+	SerGetAccountPrivacy(cOrgID string, cAppID string, accountID string) (*model.Privacy, error)
 	SerGetPreferences(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error)
 	SerGetAccountSystemConfigs(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error)
 	SerUpdateAccountPreferences(id string, appID string, orgID string, anonymous bool, preferences map[string]interface{}, l *logs.Log) (bool, error)
@@ -39,7 +40,7 @@ type Services interface {
 		authTypeIdentifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
 
 	SerGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string, firstName *string, lastName *string,
-		username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error)
+		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error)
 
 	SerAddFollow(follow model.Follow) error
 	SerDeleteFollow(appID string, orgID string, followingID string, followerID string) error
@@ -174,8 +175,8 @@ type Storage interface {
 	FindAccountByID(context storage.TransactionContext, cOrgID *string, cAppID *string, id string) (*model.Account, error)
 	FindAccounts(context storage.TransactionContext, limit *int, offset *int, appID string, orgID string, accountID *string, firstName *string, lastName *string, authType *string,
 		identifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
-	FindPublicAccounts(context storage.TransactionContext, appID string, orgID string, limit *int, offset *int,
-		search *string, firstName *string, lastName *string, username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error)
+	FindPublicAccounts(context storage.TransactionContext, appID string, orgID string, limit *int, offset *int, search *string, firstName *string, lastName *string,
+		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error)
 	FindAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	CountAccountsByParams(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
 	FindAccountsByAccountID(context storage.TransactionContext, appID string, orgID string, accountIDs []string) ([]model.Account, error)

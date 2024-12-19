@@ -460,6 +460,10 @@ func identityProviderSettingFromDef(item *Def.IdentityProviderSettings) *model.I
 	if item.IdentityBbBaseUrl != nil {
 		identityBBBaseURL = *item.IdentityBbBaseUrl
 	}
+	var identityBBProfileFields map[string]string
+	if item.IdentityBbProfileFields != nil {
+		identityBBProfileFields = *item.IdentityBbProfileFields
+	}
 
 	var adminAppAccessRoles []string
 	if item.AdminAppAccessRoles != nil {
@@ -470,7 +474,7 @@ func identityProviderSettingFromDef(item *Def.IdentityProviderSettings) *model.I
 		ExternalIDFields: externalIDFields, SensitiveExternalIDs: sensitiveExternalIDs, IsEmailVerified: isEmailVerified,
 		FirstNameField: firstNameField, MiddleNameField: middleNameField, LastNameField: lastNameField, EmailField: emailField, RolesField: rolesField,
 		GroupsField: groupsField, UserSpecificFields: userSpecificFields, Roles: roles, Groups: groups, AlwaysSyncProfile: alwaysSyncProfile,
-		IdentityBBBaseURL: identityBBBaseURL, AdminAppAccessRoles: adminAppAccessRoles, FerpaField: ferpaField}
+		IdentityBBBaseURL: identityBBBaseURL, IdentityBBProfileFields: identityBBProfileFields, AdminAppAccessRoles: adminAppAccessRoles, FerpaField: ferpaField}
 }
 
 func identityProviderSettingsToDef(items []model.IdentityProviderSetting) []Def.IdentityProviderSettings {

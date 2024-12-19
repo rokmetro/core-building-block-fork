@@ -25,7 +25,7 @@ import (
 	"github.com/rokwire/logging-library-go/v2/logutils"
 )
 
-func (app *application) serGetProfile(accountID string) (*model.Profile, *string, *string, error) {
+func (app *application) serGetProfile(cOrgID string, cAppID string, accountID string) (*model.Profile, *string, *string, error) {
 	//find the account
 	account, err := app.storage.FindAccountByID(nil, nil, nil, accountID)
 	if err != nil {
@@ -44,6 +44,18 @@ func (app *application) serGetProfile(accountID string) (*model.Profile, *string
 	}
 
 	return &profile, email, phone, nil
+}
+
+func (app *application) serGetPrivacy(cOrgID string, cAppID string, accountID string) (*model.Privacy, error) {
+	//find the account
+	account, err := app.storage.FindAccountByID(nil, &cOrgID, &cAppID, accountID)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, nil, err)
+	}
+
+	//get the privacy for the account
+	privacy := account.Privacy
+	return &privacy, nil
 }
 
 func (app *application) serGetPreferences(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error) {
@@ -152,12 +164,13 @@ func (app *application) serGetAccounts(limit int, offset int, appID string, orgI
 }
 
 func (app *application) serGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string, firstName *string,
-	lastName *string, username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error) {
+	lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error) {
 	//find the accounts
-	accounts, err := app.storage.FindPublicAccounts(nil, appID, orgID, &limit, &offset, search, firstName, lastName, username, followingID, followerID, userID)
+	accounts, err := app.storage.FindPublicAccounts(nil, appID, orgID, &limit, &offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, nil, err)
 	}
+
 	return accounts, nil
 }
 

@@ -785,8 +785,8 @@ func (sa *Adapter) FindAccounts(context TransactionContext, limit *int, offset *
 }
 
 // FindPublicAccounts finds accounts and returns name and username
-func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, orgID string, limit *int, offset *int,
-	search *string, firstName *string, lastName *string, username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error) {
+func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, orgID string, limit *int, offset *int, search *string, firstName *string, lastName *string,
+	username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error) {
 	appOrg, err := sa.FindApplicationOrganization(appID, orgID)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeApplicationOrganization, nil, err)
@@ -829,20 +829,6 @@ func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, 
 		pipeline = append(pipeline, bson.M{"$match": regexFilter})
 	}
 
-	pipeline = append(pipeline, bson.M{"$match": bson.M{"org_apps_memberships.app_org_id": appOrg.ID, "privacy.public": true}})
-	pipeline = append(pipeline, bson.M{"$lookup": bson.M{
-		"from":         "follows",
-		"localField":   "_id",
-		"foreignField": "following_id",
-		"as":           "followings",
-	}})
-	pipeline = append(pipeline, bson.M{"$lookup": bson.M{
-		"from":         "follows",
-		"localField":   "_id",
-		"foreignField": "follower_id",
-		"as":           "followers",
-	}})
-
 	if firstName != nil {
 		firstNameStr = *firstName
 		pipeline = append(pipeline, bson.M{"$match": bson.M{"profile.first_name": *firstName}})
@@ -866,10 +852,21 @@ func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, 
 		pipeline = append(pipeline, bson.M{"$match": bson.M{"followings.follower_id": *followerID}})
 	}
 
-	// adds boolean value whether API calling user is following account
-	pipeline = append(pipeline, bson.M{"$addFields": bson.M{"is_following": bson.M{"$in": bson.A{userID, "$followings.follower_id"}}}})
+	for k, v := range unstructuredProperties {
+		pipeline = append(pipeline, bson.M{"$match": bson.M{"profile.unstructured_properties." + k: v}})
+	}
 
-	if offset != nil {
+	pipeline = append(pipeline, bson.M{"$match": bson.M{"org_apps_memberships.app_org_id": appOrg.ID, "privacy.public": true}})
+	pipeline = append(pipeline, bson.M{"$addFields": bson.M{
+		"normalized_last_name":  bson.M{"$toLower": "$profile.last_name"},
+		"normalized_first_name": bson.M{"$toLower": "$profile.first_name"},
+	}})
+	pipeline = append(pipeline, bson.M{"$sort": bson.D{
+		{Key: "normalized_last_name", Value: 1},
+		{Key: "normalized_first_name", Value: 1},
+	}})
+
+	if offset != nil && *offset > 0 {
 		pipeline = append(pipeline, bson.M{"$skip": *offset})
 	}
 
@@ -877,37 +874,46 @@ func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, 
 		pipeline = append(pipeline, bson.M{"$limit": *limit})
 	}
 
-	var accounts []tenantAccount
-	err = sa.db.tenantsAccounts.Aggregate(pipeline, &accounts, nil)
+	pipeline = append(pipeline, bson.M{"$lookup": bson.M{
+		"from":         "follows",
+		"localField":   "_id",
+		"foreignField": "following_id",
+		"as":           "followings",
+	}})
+	pipeline = append(pipeline, bson.M{"$lookup": bson.M{
+		"from":         "follows",
+		"localField":   "_id",
+		"foreignField": "follower_id",
+		"as":           "followers",
+	}})
+
+	// adds boolean value whether API calling user is following account
+	pipeline = append(pipeline, bson.M{"$addFields": bson.M{"is_following": bson.M{"$in": bson.A{userID, "$followings.follower_id"}}}})
+
+	var results []tenantAccount
+	err = sa.db.tenantsAccounts.Aggregate(pipeline, &results, nil)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, &logutils.FieldArgs{"app_id": appID, "org_id": orgID, "search": searchStr, "first_name": firstNameStr, "last_name": lastNameStr, "username": usernameStr, "following_id": followingIDStr, "follower_id": followerIDStr}, err)
 	}
 
-	var publicAccounts []model.PublicAccount
-	for _, account := range accounts {
-		username := ""
-		for _, id := range account.Identifiers {
-			if id.Code == "username" {
-				username = id.Identifier
-				break
-			}
-		}
-
-		//not used?
-		verified := false
-		if account.Verified != nil && *account.Verified {
-			verified = true
-		}
-
-		publicAccounts = append(publicAccounts, model.PublicAccount{
-			ID:          account.ID,
-			Username:    username,
-			FirstName:   account.Profile.FirstName,
-			LastName:    account.Profile.LastName,
-			Verified:    verified,
-			IsFollowing: account.IsFollowing,
-		})
+	//all memberships applications organizations - from cache
+	allAppsOrgs, err := sa.getCachedApplicationOrganizations()
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
 	}
+
+	publicAccounts := make([]model.PublicAccount, 0)
+	for _, item := range results {
+		account := accountFromStorage(item, &appOrg.ID, allAppsOrgs, sa)
+		publicAccount, err := account.GetPublicAccount(false) //TODO: get actual connection status
+		if err != nil {
+			sa.logger.Errorf("error getting public account: %v", err)
+			continue
+		}
+		publicAccount.IsFollowing = item.IsFollowing
+		publicAccounts = append(publicAccounts, *publicAccount)
+	}
+
 	return publicAccounts, nil
 }
 
@@ -2955,6 +2961,8 @@ func (sa *Adapter) UpdateAccountProfile(context TransactionContext, accountID st
 	profileUpdate := bson.D{
 		primitive.E{Key: "$set", Value: bson.D{
 			primitive.E{Key: "profile.photo_url", Value: profile.PhotoURL},
+			primitive.E{Key: "profile.pronunciation_url", Value: profile.PronunciationURL},
+			primitive.E{Key: "profile.pronouns", Value: profile.Pronouns},
 			primitive.E{Key: "profile.first_name", Value: profile.FirstName},
 			primitive.E{Key: "profile.last_name", Value: profile.LastName},
 			primitive.E{Key: "profile.birth_year", Value: profile.BirthYear},
@@ -2962,6 +2970,7 @@ func (sa *Adapter) UpdateAccountProfile(context TransactionContext, accountID st
 			primitive.E{Key: "profile.zip_code", Value: profile.ZipCode},
 			primitive.E{Key: "profile.state", Value: profile.State},
 			primitive.E{Key: "profile.country", Value: profile.Country},
+			primitive.E{Key: "profile.website", Value: profile.Website},
 			primitive.E{Key: "profile.date_updated", Value: &now},
 			primitive.E{Key: "profile.unstructured_properties", Value: profile.UnstructuredProperties},
 		}},

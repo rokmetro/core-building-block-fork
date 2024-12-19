@@ -739,7 +739,7 @@ func (h ServicesApisHandler) removeMFAType(l *logs.Log, r *http.Request, claims 
 }
 
 func (h ServicesApisHandler) getProfile(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
-	profile, email, phone, err := h.coreAPIs.Services.SerGetProfile(claims.Subject)
+	profile, email, phone, err := h.coreAPIs.Services.SerGetProfile(claims.OrgID, claims.AppID, claims.Subject)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeProfile, nil, err, http.StatusInternalServerError, true)
 	}
@@ -775,6 +775,22 @@ func (h ServicesApisHandler) updateProfile(l *logs.Log, r *http.Request, claims 
 	return l.HTTPResponseSuccess()
 }
 
+func (h ServicesApisHandler) getPrivacy(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
+	privacy, err := h.coreAPIs.Services.SerGetAccountPrivacy(claims.OrgID, claims.AppID, claims.Subject)
+	if err != nil {
+		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypePrivacy, nil, err, http.StatusInternalServerError, true)
+	}
+
+	privacyResp := privacyToDef(privacy)
+
+	data, err := json.Marshal(privacyResp)
+	if err != nil {
+		return l.HTTPResponseErrorAction(logutils.ActionMarshal, model.TypePrivacy, nil, err, http.StatusInternalServerError, false)
+	}
+
+	return l.HTTPResponseSuccessJSON(data)
+}
+
 func (h ServicesApisHandler) updatePrivacy(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
 
 	var requestData Def.Privacy
@@ -784,6 +800,10 @@ func (h ServicesApisHandler) updatePrivacy(l *logs.Log, r *http.Request, claims 
 	}
 
 	privacy := privacyFromDef(&requestData)
+	err = privacy.ValidateFieldVisibility(nil)
+	if err != nil {
+		return l.HTTPResponseErrorData(logutils.StatusInvalid, logutils.TypeRequestBody, logutils.StringArgs("field_visibility"), err, http.StatusBadRequest, true)
+	}
 
 	err = h.coreAPIs.Services.SerUpdateAccountPrivacy(claims.Subject, privacy)
 	if err != nil {
@@ -981,10 +1001,11 @@ func (h ServicesApisHandler) getAccounts(l *logs.Log, r *http.Request, claims *t
 
 func (h ServicesApisHandler) getPublicAccounts(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
 	var err error
+	query := r.URL.Query()
 
 	//limit and offset
 	limit := 20
-	limitArg := r.URL.Query().Get("limit")
+	limitArg := query.Get("limit")
 	if limitArg != "" {
 		limit, err = strconv.Atoi(limitArg)
 		if err != nil {
@@ -992,7 +1013,7 @@ func (h ServicesApisHandler) getPublicAccounts(l *logs.Log, r *http.Request, cla
 		}
 	}
 	offset := 0
-	offsetArg := r.URL.Query().Get("offset")
+	offsetArg := query.Get("offset")
 	if offsetArg != "" {
 		offset, err = strconv.Atoi(offsetArg)
 		if err != nil {
@@ -1002,49 +1023,57 @@ func (h ServicesApisHandler) getPublicAccounts(l *logs.Log, r *http.Request, cla
 
 	//search
 	var search *string
-	searchParam := r.URL.Query().Get("search")
+	searchParam := query.Get("search")
 	if len(searchParam) > 0 {
 		search = &searchParam
 	}
 
 	//username
 	var username *string
-	usernameParam := r.URL.Query().Get("username")
+	usernameParam := query.Get("username")
 	if len(usernameParam) > 0 {
 		username = &usernameParam
 	}
 
 	//first name
 	var firstName *string
-	firstNameParam := r.URL.Query().Get("firstname")
+	firstNameParam := query.Get("firstname")
 	if len(firstNameParam) > 0 {
 		firstName = &firstNameParam
 	}
 	//last name
 	var lastName *string
-	lastNameParam := r.URL.Query().Get("lastname")
+	lastNameParam := query.Get("lastname")
 	if len(lastNameParam) > 0 {
 		lastName = &lastNameParam
 	}
 
 	//following id
 	var followingID *string
-	followingIDParam := r.URL.Query().Get("following-id")
+	followingIDParam := query.Get("following-id")
 	if len(followingIDParam) > 0 {
 		followingID = &followingIDParam
 	}
 
 	//following id
 	var followerID *string
-	followerIDParam := r.URL.Query().Get("follower-id")
+	followerIDParam := query.Get("follower-id")
 	if len(followerIDParam) > 0 {
 		followerID = &followerIDParam
 	}
 
+	unstructuredProperties := make(map[string]string)
+	explicitQueryParams := []string{"limit", "offset", "search", "username", "firstname", "lastname", "following-id", "follower-id"}
+	for k := range query {
+		if !utils.Contains(explicitQueryParams, k) {
+			unstructuredProperties[k] = query.Get(k)
+		}
+	}
+
 	accounts, err := h.coreAPIs.Services.SerGetPublicAccounts(claims.AppID, claims.OrgID, limit, offset, search,
-		firstName, lastName, username, followingID, followerID, claims.Subject)
+		firstName, lastName, username, followingID, followerID, unstructuredProperties, claims.Subject)
 	if err != nil {
-		return l.HTTPResponseErrorAction("error finding accounts", model.TypeAccount, nil, err, http.StatusInternalServerError, true)
+		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccount, nil, err, http.StatusInternalServerError, true)
 	}
 
 	if accounts == nil {

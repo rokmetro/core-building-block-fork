@@ -506,7 +506,7 @@ func (a *Auth) applyOrgSignUpExternal(context storage.TransactionContext, suppor
 
 	var identityBBProfile *model.Profile
 	if identityProviderSetting.IdentityBBBaseURL != "" {
-		identityBBProfile, err = a.identityBB.GetUserProfile(identityProviderSetting.IdentityBBBaseURL, externalUser, externalCreds, l)
+		identityBBProfile, err = a.identityBB.GetUserProfile(identityProviderSetting.IdentityBBBaseURL, externalUser, externalCreds, identityProviderSetting.IdentityBBProfileFields, l)
 		if err != nil {
 			l.WarnError(logutils.MessageAction(logutils.StatusError, "syncing", "identity bb data", nil), err)
 		}
@@ -636,7 +636,7 @@ func (a *Auth) updateExternalUserIfNeeded(accountAuthType model.AccountAuthType,
 
 	var identityBBProfile *model.Profile
 	if identityProviderSetting.IdentityBBBaseURL != "" {
-		identityBBProfile, err = a.identityBB.GetUserProfile(identityProviderSetting.IdentityBBBaseURL, externalUser, externalCreds, l)
+		identityBBProfile, err = a.identityBB.GetUserProfile(identityProviderSetting.IdentityBBBaseURL, externalUser, externalCreds, identityProviderSetting.IdentityBBProfileFields, l)
 		if err != nil {
 			l.WarnError(logutils.MessageAction(logutils.StatusError, "syncing", "identity bb data", nil), err)
 		}

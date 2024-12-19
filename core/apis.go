@@ -339,8 +339,12 @@ func (s *servicesImpl) SerGetAccount(cOrgID string, cAppID string, accountID str
 	return s.app.sharedGetAccount(cOrgID, cAppID, accountID)
 }
 
-func (s *servicesImpl) SerGetProfile(accountID string) (*model.Profile, *string, *string, error) {
-	return s.app.serGetProfile(accountID)
+func (s *servicesImpl) SerGetProfile(cOrgID string, cAppID string, accountID string) (*model.Profile, *string, *string, error) {
+	return s.app.serGetProfile(cOrgID, cAppID, accountID)
+}
+
+func (s *servicesImpl) SerGetAccountPrivacy(cOrgID string, cAppID string, accountID string) (*model.Privacy, error) {
+	return s.app.serGetPrivacy(cOrgID, cAppID, accountID)
 }
 
 func (s *servicesImpl) SerGetPreferences(cOrgID string, cAppID string, accountID string) (map[string]interface{}, error) {
@@ -377,8 +381,8 @@ func (s *servicesImpl) SerGetAccounts(limit int, offset int, appID string, orgID
 }
 
 func (s *servicesImpl) SerGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string,
-	firstName *string, lastName *string, username *string, followingID *string, followerID *string, userID string) ([]model.PublicAccount, error) {
-	return s.app.serGetPublicAccounts(appID, orgID, limit, offset, search, firstName, lastName, username, followingID, followerID, userID)
+	firstName *string, lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error) {
+	return s.app.serGetPublicAccounts(appID, orgID, limit, offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID)
 }
 
 func (s *servicesImpl) SerAddFollow(follow model.Follow) error {
