@@ -63,6 +63,7 @@ type oidcAuthConfig struct {
 	UserInfoURL        string            `json:"userinfo_url"`
 	Scopes             string            `json:"scopes"`
 	RequestParams      map[string]string `json:"request_params"`
+	TokenParams        map[string]string `json:"token_params"`
 	UseRefresh         bool              `json:"use_refresh"`
 	UsePKCE            bool              `json:"use_pkce"`
 	ClientID           string            `json:"client_id" validate:"required"`
@@ -134,12 +135,18 @@ func (a *oidcAuthImpl) externalLogin(authType model.AuthType, appType model.Appl
 		return nil, nil, "", errors.WrapErrorAction(logutils.ActionGet, typeOidcAuthConfig, nil, err)
 	}
 
-	parsedCreds, err := url.Parse(strings.ReplaceAll(creds, `"`, ""))
+	var decodedCreds string
+	err = json.Unmarshal([]byte(creds), &decodedCreds)
+	if err != nil {
+		return nil, nil, "", errors.WrapErrorAction(logutils.ActionDecode, typePasswordCreds, nil, err)
+	}
+	parsedCreds, err := url.Parse(decodedCreds)
 	if err != nil {
 		return nil, nil, "", errors.WrapErrorAction(logutils.ActionParse, "oidc login creds", nil, err)
 	}
 
-	externalUser, parameters, accessToken, err := a.newToken(parsedCreds.Query().Get("code"), authType, appType, appOrg, &loginParams, oidcConfig, l)
+	code := parsedCreds.Query().Get("code")
+	externalUser, parameters, accessToken, err := a.newToken(code, authType, appType, appOrg, &loginParams, oidcConfig, l)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -272,6 +279,10 @@ func (a *oidcAuthImpl) newToken(code string, authType model.AuthType, appType mo
 	}
 	if len(params.CodeVerifier) > 0 {
 		bodyData["code_verifier"] = params.CodeVerifier
+	}
+
+	for key, val := range oidcConfig.TokenParams {
+		bodyData[key] = val
 	}
 
 	return a.loadOidcTokensAndInfo(bodyData, oidcConfig, authType, appType, appOrg, redirectURI, l)
