@@ -71,8 +71,8 @@ func (app *application) sharedGetAppAssetFile(orgID string, appID string, name s
 	return app.storage.FindAppAsset(orgID, appID, name)
 }
 
-func (app *application) sharedGetAccount(accountID string) (*model.Account, error) {
-	account, err := app.getAccount(nil, accountID)
+func (app *application) sharedGetAccount(cOrgID string, cAppID string, accountID string) (*model.Account, error) {
+	account, err := app.getAccount(nil, cOrgID, cAppID, accountID)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionGet, model.TypeAccount, nil, err)
 	}
@@ -87,13 +87,13 @@ func (app *application) sharedGetAccount(accountID string) (*model.Account, erro
 	return account, nil
 }
 
-func (app *application) sharedGetAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error) {
+func (app *application) sharedGetAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error) {
 	accounts, err := app.storage.FindAccountsByParams(searchParams, appID, orgID, limit, offset, allAccess, approvedKeys)
 	if err != nil {
 		return nil, err
 	}
 	if accounts == nil {
-		return []map[string]interface{}{}, nil
+		return []model.Account{}, nil
 	}
 	return accounts, nil
 }
@@ -136,7 +136,7 @@ func (app *application) sharedUpdateAccountUsername(accountID string, appID stri
 			return errors.ErrorData(logutils.StatusInvalid, model.TypeAccountUsername, logutils.StringArgs(username+" taken")).SetStatus(utils.ErrorStatusUsernameTaken)
 		}
 
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionGet, model.TypeAccount, &logutils.FieldArgs{"id": accountID}, err)
 		}

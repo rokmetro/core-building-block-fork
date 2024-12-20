@@ -278,13 +278,7 @@ type Application struct {
 
 	MultiTenant bool //safer community is multi-tenant
 	Admin       bool //is this an admin app?
-
-	//if to share identities between the organizations within the appication or to use e separate identities for every organization
-	//if true - the user uses shared profile between all organizations within the application
-	//if false - the user uses a separate profile for every organization within the application
-	SharedIdentities bool
-
-	Types []ApplicationType
+	Types       []ApplicationType
 
 	Organizations []ApplicationOrganization
 
@@ -405,14 +399,18 @@ type IdentityProviderSetting struct {
 	EmailField      string `bson:"email_field"`
 	RolesField      string `bson:"roles_field"`
 	GroupsField     string `bson:"groups_field"`
+	FerpaField      string `bson:"ferpa_field"`
 
 	UserSpecificFields []string `bson:"user_specific_fields"`
 
-	AlwaysSyncProfile bool   `bson:"always_sync_profile"` // if true, profile data will be overwritten with data from external user on each login/refresh
-	IdentityBBBaseURL string `bson:"identity_bb_base_url"`
+	AlwaysSyncProfile       bool              `bson:"always_sync_profile"` // if true, profile data will be overwritten with data from external user on each login/refresh
+	IdentityBBBaseURL       string            `bson:"identity_bb_base_url"`
+	IdentityBBProfileFields map[string]string `bson:"identity_bb_profile_fields"` // a map from paths into the data returned by the Identity BB to keys in Profile.UnstructuredProperties
 
 	Roles  map[string]string `bson:"roles"`  //map[identity_provider_role]app_role_id
 	Groups map[string]string `bson:"groups"` //map[identity_provider_group]app_group_id
+
+	AdminAppAccessRoles []string `bson:"admin_app_access_roles"` //list with the identity provider roles which are approved for admin app account creation
 }
 
 // LoginsSessionsSetting represents logins sessions setting for an organization in an application

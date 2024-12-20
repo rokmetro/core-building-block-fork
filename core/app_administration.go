@@ -438,7 +438,7 @@ func (app *application) admGetApplications(orgID string) ([]model.Application, e
 	return apps, nil
 }
 
-func (app *application) admCreateAppOrgGroup(name string, description string, system bool, permissionNames []string, rolesIDs []string, accountIDs []string, appID string, orgID string, assignerPermissions []string, systemClaim bool, l *logs.Log) (*model.AppOrgGroup, error) {
+func (app *application) admCreateAppOrgGroup(name string, description string, system bool, permissionNames []string, rolesIDs []string, accountIDs []string, appID string, orgID string, assignerPermissions []string, systemClaim bool) (*model.AppOrgGroup, error) {
 	if len(assignerPermissions) == 0 {
 		return nil, errors.ErrorData(logutils.StatusMissing, "assigner permissions", nil)
 	}
@@ -489,7 +489,7 @@ func (app *application) admCreateAppOrgGroup(name string, description string, sy
 			}
 
 			accountGroup := model.AccountGroup{Group: group, Active: true, AdminSet: true}
-			err = app.storage.InsertAccountsGroup(context, accountGroup, accountIDs)
+			err = app.storage.InsertAccountsGroup(context, appOrg.ID, accountGroup, accountIDs)
 			if err != nil {
 				return errors.WrapErrorAction(logutils.ActionInsert, model.TypeAppOrgGroup, &logutils.FieldArgs{"id": group.ID}, err)
 			}
@@ -505,7 +505,7 @@ func (app *application) admCreateAppOrgGroup(name string, description string, sy
 	return newGroup, nil
 }
 
-func (app *application) admUpdateAppOrgGroup(ID string, name string, description string, system bool, permissionNames []string, rolesIDs []string, accountIDs []string, appID string, orgID string, assignerPermissions []string, systemClaim bool, l *logs.Log) (*model.AppOrgGroup, error) {
+func (app *application) admUpdateAppOrgGroup(ID string, name string, description string, system bool, permissionNames []string, rolesIDs []string, accountIDs []string, appID string, orgID string, assignerPermissions []string, systemClaim bool) (*model.AppOrgGroup, error) {
 	var updatedGroup *model.AppOrgGroup
 	transaction := func(context storage.TransactionContext) error {
 		//1. get application organization entity
@@ -632,7 +632,7 @@ func (app *application) admUpdateAppOrgGroup(ID string, name string, description
 			added, removed, _ = utils.StringListDiff(accountIDs, currentAccountIDs)
 			if len(added) > 0 {
 				accountGroup := model.AccountGroup{Group: *group, Active: true, AdminSet: true}
-				err = app.storage.InsertAccountsGroup(context, accountGroup, added)
+				err = app.storage.InsertAccountsGroup(context, appOrg.ID, accountGroup, added)
 				if err != nil {
 					return errors.WrapErrorAction(logutils.ActionInsert, model.TypeAppOrgGroup, &logutils.FieldArgs{"id": group.ID}, err)
 				}
@@ -650,7 +650,7 @@ func (app *application) admUpdateAppOrgGroup(ID string, name string, description
 					}
 				}
 				//remove the accounts from the group
-				err = app.storage.RemoveAccountsGroup(context, group.ID, removed)
+				err = app.storage.RemoveAccountsGroup(context, appOrg.ID, group.ID, removed)
 				if err != nil {
 					return errors.WrapErrorAction(logutils.ActionDelete, model.TypeAppOrgGroup, &logutils.FieldArgs{"id": group.ID}, err)
 				}
@@ -682,7 +682,7 @@ func (app *application) admGetAppOrgGroups(appID string, orgID string) ([]model.
 	return getAppOrgGroups, nil
 }
 
-func (app *application) admDeleteAppOrgGroup(ID string, appID string, orgID string, assignerPermissions []string, system bool, l *logs.Log) error {
+func (app *application) admDeleteAppOrgGroup(ID string, appID string, orgID string, assignerPermissions []string, system bool) error {
 	//1. get application organization entity
 	appOrg, err := app.getApplicationOrganization(appID, orgID)
 	if err != nil {
@@ -728,7 +728,7 @@ func (app *application) admDeleteAppOrgGroup(ID string, appID string, orgID stri
 	return nil
 }
 
-func (app *application) admAddAccountsToGroup(appID string, orgID string, groupID string, accountIDs []string, assignerPermissions []string, l *logs.Log) error {
+func (app *application) admAddAccountsToGroup(appID string, orgID string, groupID string, accountIDs []string, assignerPermissions []string) error {
 	//validate
 	if len(assignerPermissions) == 0 {
 		return errors.ErrorData(logutils.StatusMissing, "assigner permissions", nil)
@@ -750,8 +750,10 @@ func (app *application) admAddAccountsToGroup(appID string, orgID string, groupI
 			return errors.ErrorData(logutils.StatusInvalid, "account id", &logutils.FieldArgs{"ids": accountIDs})
 		}
 
+		appOrgID := accounts[0].AppOrg.ID
+
 		//2. find group
-		group, err := app.getAppOrgGroup(context, groupID, accounts[0].AppOrg.ID, nil)
+		group, err := app.getAppOrgGroup(context, groupID, appOrgID, nil)
 		if err != nil {
 			return err
 		}
@@ -775,7 +777,7 @@ func (app *application) admAddAccountsToGroup(appID string, orgID string, groupI
 
 		//5. insert accounts to group
 		accountGroup := model.AccountGroup{Group: *group, Active: true, AdminSet: true}
-		err = app.storage.InsertAccountsGroup(context, accountGroup, updateAccounts)
+		err = app.storage.InsertAccountsGroup(context, appOrgID, accountGroup, updateAccounts)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionUpdate, model.TypeAccount, &logutils.FieldArgs{"ids": updateAccounts, "group_id": groupID}, err)
 		}
@@ -786,7 +788,7 @@ func (app *application) admAddAccountsToGroup(appID string, orgID string, groupI
 	return app.storage.PerformTransaction(transaction)
 }
 
-func (app *application) admRemoveAccountsFromGroup(appID string, orgID string, groupID string, accountIDs []string, assignerPermissions []string, l *logs.Log) error {
+func (app *application) admRemoveAccountsFromGroup(appID string, orgID string, groupID string, accountIDs []string, assignerPermissions []string) error {
 	//validate
 	if len(assignerPermissions) == 0 {
 		return errors.ErrorData(logutils.StatusMissing, "assigner permissions", nil)
@@ -808,8 +810,10 @@ func (app *application) admRemoveAccountsFromGroup(appID string, orgID string, g
 			return errors.ErrorData(logutils.StatusMissing, model.TypeAccount, &logutils.FieldArgs{"ids": accountIDs})
 		}
 
+		appOrgID := accounts[0].AppOrg.ID
+
 		//2. find group
-		group, err := app.getAppOrgGroup(context, groupID, accounts[0].AppOrg.ID, nil)
+		group, err := app.getAppOrgGroup(context, groupID, appOrgID, nil)
 		if err != nil {
 			return err
 		}
@@ -829,7 +833,7 @@ func (app *application) admRemoveAccountsFromGroup(appID string, orgID string, g
 		}
 
 		//5. remove the accounts from the group
-		err = app.storage.RemoveAccountsGroup(context, group.ID, updateAccounts)
+		err = app.storage.RemoveAccountsGroup(context, appOrgID, group.ID, updateAccounts)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionDelete, model.TypeAccountGroups, &logutils.FieldArgs{"id": groupID}, err)
 		}
@@ -840,7 +844,7 @@ func (app *application) admRemoveAccountsFromGroup(appID string, orgID string, g
 	return app.storage.PerformTransaction(transaction)
 }
 
-func (app *application) admCreateAppOrgRole(name string, description string, system bool, permissionNames []string, scopes []string, appID string, orgID string, assignerPermissions []string, systemClaim bool, l *logs.Log) (*model.AppOrgRole, error) {
+func (app *application) admCreateAppOrgRole(name string, description string, system bool, permissionNames []string, scopes []string, appID string, orgID string, assignerPermissions []string, systemClaim bool) (*model.AppOrgRole, error) {
 	var newRole *model.AppOrgRole
 	transaction := func(context storage.TransactionContext) error {
 		//1. get application organization entity
@@ -908,7 +912,7 @@ func (app *application) admGetAppOrgRoles(appID string, orgID string) ([]model.A
 	return getAppOrgRoles, nil
 }
 
-func (app *application) admUpdateAppOrgRole(ID string, name string, description string, system bool, permissionNames []string, scopes []string, appID string, orgID string, assignerPermissions []string, systemClaim bool, l *logs.Log) (*model.AppOrgRole, error) {
+func (app *application) admUpdateAppOrgRole(ID string, name string, description string, system bool, permissionNames []string, scopes []string, appID string, orgID string, assignerPermissions []string, systemClaim bool) (*model.AppOrgRole, error) {
 	var updatedRole *model.AppOrgRole
 	transaction := func(context storage.TransactionContext) error {
 		//1. find application organization
@@ -1000,7 +1004,7 @@ func (app *application) admUpdateAppOrgRole(ID string, name string, description 
 	return updatedRole, nil
 }
 
-func (app *application) admDeleteAppOrgRole(ID string, appID string, orgID string, assignerPermissions []string, system bool, l *logs.Log) error {
+func (app *application) admDeleteAppOrgRole(ID string, appID string, orgID string, assignerPermissions []string, system bool) error {
 	//1. get application organization entity
 	appOrg, err := app.getApplicationOrganization(appID, orgID)
 	if err != nil {
@@ -1047,7 +1051,7 @@ func (app *application) admDeleteAppOrgRole(ID string, appID string, orgID strin
 	return nil
 }
 
-func (app *application) admGetApplicationPermissions(appID string, orgID string, l *logs.Log) ([]model.Permission, error) {
+func (app *application) admGetApplicationPermissions(appID string, orgID string) ([]model.Permission, error) {
 	//1. find application organization
 	appOrg, err := app.getApplicationOrganization(appID, orgID)
 	if err != nil {
@@ -1074,7 +1078,7 @@ func (app *application) admGetAccounts(limit int, offset int, appID string, orgI
 
 func (app *application) admGetAccountSystemConfigs(appID string, orgID string, accountID string, l *logs.Log) (map[string]interface{}, error) {
 	//find the account
-	account, err := app.getAccount(nil, accountID)
+	account, err := app.getAccount(nil, orgID, appID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,7 +1098,7 @@ func (app *application) admUpdateAccountSystemConfigs(appID string, orgID string
 	created := false
 	transaction := func(context storage.TransactionContext) error {
 		//1. verify that the account is for the current app/org
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return errors.WrapErrorAction(logutils.ActionFind, model.TypeAccountSystemConfigs, &logutils.FieldArgs{"account_id": accountID}, err)
 		}
@@ -1186,7 +1190,7 @@ func (app *application) admDeleteApplicationLoginSession(appID string, orgID str
 
 func (app *application) admGetApplicationAccountDevices(appID string, orgID string, accountID string, l *logs.Log) ([]model.Device, error) {
 	//1. find the account
-	account, err := app.getAccount(nil, accountID)
+	account, err := app.getAccount(nil, orgID, appID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1219,7 @@ func (app *application) admGrantAccountPermissions(appID string, orgID string, a
 
 	transaction := func(context storage.TransactionContext) error {
 		//1. verify that the account is for the current app/org
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return err
 		}
@@ -1250,7 +1254,7 @@ func (app *application) admRevokeAccountPermissions(appID string, orgID string, 
 
 	transaction := func(context storage.TransactionContext) error {
 		//1. verify that the account is for the current app/org
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return err
 		}
@@ -1282,7 +1286,7 @@ func (app *application) admGrantAccountRoles(appID string, orgID string, account
 
 	transaction := func(context storage.TransactionContext) error {
 		//1. verify that the account is for the current app/org
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return err
 		}
@@ -1317,7 +1321,7 @@ func (app *application) admRevokeAccountRoles(appID string, orgID string, accoun
 
 	transaction := func(context storage.TransactionContext) error {
 		//1. verify that the account is for the current app/org
-		account, err := app.getAccount(context, accountID)
+		account, err := app.getAccount(context, orgID, appID, accountID)
 		if err != nil {
 			return err
 		}
@@ -1341,7 +1345,7 @@ func (app *application) admRevokeAccountRoles(appID string, orgID string, accoun
 	return app.storage.PerformTransaction(transaction)
 }
 
-func (app *application) admGrantPermissionsToRole(appID string, orgID string, roleID string, permissionNames []string, assignerPermissions []string, system bool, l *logs.Log) error {
+func (app *application) admGrantPermissionsToRole(appID string, orgID string, roleID string, permissionNames []string, assignerPermissions []string, system bool) error {
 	//check if there is data
 	if len(assignerPermissions) == 0 {
 		return errors.ErrorData(logutils.StatusMissing, "assigner permissions", nil)

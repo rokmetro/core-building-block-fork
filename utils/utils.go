@@ -258,6 +258,28 @@ func GetPrintableString(v *string, defaultVal string) string {
 	return defaultVal
 }
 
+// GetMapEntryFromPath returns the data entry corresponding to path, a period-separated string
+func GetMapEntryFromPath(data map[string]interface{}, path string) interface{} {
+	if len(data) == 0 {
+		return nil
+	}
+
+	splitPath := strings.Split(path, ".")
+	entry, ok := data[splitPath[0]]
+	if !ok {
+		return nil
+	}
+	if len(splitPath) == 1 {
+		return entry
+	}
+
+	entryData, ok := entry.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	return GetMapEntryFromPath(entryData, strings.Join(splitPath[1:], "."))
+}
+
 // Encrypt data with AES-256 GCM and returns the data encrypted with a generated key, the generated key encrypted with aesKey, and their respective nonces
 func Encrypt(data []byte, aesKey []byte) (string, string, string, string, error) {
 	//1. generate random key
