@@ -232,6 +232,7 @@ func (sa *Adapter) constructTenantsAccountsForOrg(orgID string, accounts []accou
 }
 
 func (sa *Adapter) verifyNotExist(accounts []account) bool {
+	success := true
 	for _, acc := range accounts {
 		for _, acc2 := range accounts {
 			if acc.ID == acc2.ID {
@@ -240,11 +241,12 @@ func (sa *Adapter) verifyNotExist(accounts []account) bool {
 
 			if sa.containsIdentifier(acc.Identifiers, acc2.Identifiers) {
 				sa.logger.ErrorWithFields("duplicate identifier", logutils.Fields{"account1_id": acc.ID, "account2_id": acc2.ID})
-				return false
+				success = false
+				// return false
 			}
 		}
 	}
-	return true
+	return success
 }
 
 func (sa *Adapter) containsIdentifier(identifiers1 []accountIdentifier, identifiers2 []accountIdentifier) bool {
