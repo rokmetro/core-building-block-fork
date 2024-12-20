@@ -239,7 +239,7 @@ func (sa *Adapter) verifyNotExist(accounts []account) bool {
 			}
 
 			if sa.containsIdentifier(acc.Identifiers, acc2.Identifiers) {
-				// sa.logger.ErrorWithFields("duplicate identifier", logutils.Fields{"account1_id": acc.ID, "account2_id": acc2.ID})
+				sa.logger.ErrorWithFields("duplicate identifier", logutils.Fields{"account1_id": acc.ID, "account2_id": acc2.ID})
 				return false
 			}
 		}
