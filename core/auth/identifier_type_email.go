@@ -287,7 +287,7 @@ func (a *emailIdentifierImpl) sendCode(appName string, code string, codeType str
 			body += " to " + appName
 		}
 		body += ". If you did not request this authentication code, please ignore this message."
-		return "", a.auth.emailer.Send(a.identifier, subject, body, nil)
+		return "verification code sent successfully", a.auth.emailer.Send(a.identifier, subject, body, nil)
 	default:
 		return "", errors.ErrorData(logutils.StatusInvalid, "code type", logutils.StringArgs(codeType))
 	}
