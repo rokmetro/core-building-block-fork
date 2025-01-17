@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix email and code sign up
 - Allow update username API to create username
+- Fix email with code login and missing membership data [#38](https://github.com/rokmetro/core-building-block-fork/issues/38)
   
 ## [1.45.2] - 2024-18-12
 ### Fixed

@@ -243,6 +243,19 @@ func (a Account) HasApp(appID string) bool {
 	return false
 }
 
+// GetMembershipByAppOrgID gets a membership by appOrgID
+func (a Account) GetMembershipByAppOrgID(appOrgID string) OrgAppMembership {
+	if len(a.OrgAppsMemberships) == 0 {
+		return OrgAppMembership{}
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.ID == appOrgID {
+			return oam
+		}
+	}
+	return OrgAppMembership{}
+}
+
 // SetCurrentMembership sets current membership
 func (a *Account) SetCurrentMembership(current OrgAppMembership) {
 	a.AppOrg = current.AppOrg
@@ -250,6 +263,7 @@ func (a *Account) SetCurrentMembership(current OrgAppMembership) {
 	a.Roles = current.Roles
 	a.Groups = current.Groups
 	a.Preferences = current.Preferences
+	a.Secrets = current.Secrets
 	a.MostRecentClientVersion = current.MostRecentClientVersion
 }
 

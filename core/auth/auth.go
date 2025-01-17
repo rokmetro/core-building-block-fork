@@ -316,6 +316,8 @@ func (a *Auth) applyExternalAuthType(supportedAuthType model.SupportedAuthType, 
 	//4. apply operation
 	switch operation {
 	case operationSignIn:
+		account.SetCurrentMembership(account.GetMembershipByAppOrgID(appOrg.ID))
+
 		canSignIn := a.canSignIn(account, code, externalUser.Identifier, appOrg.ID)
 		if !canSignIn {
 			return nil, nil, nil, errors.ErrorData(logutils.StatusInvalid, model.TypeAccount, &logutils.FieldArgs{"app_org_id": appOrg.ID, "code": code, "identifier": externalUser.Identifier})
@@ -820,6 +822,8 @@ func (a *Auth) applyAuthType(supportedAuthType model.SupportedAuthType, appOrg m
 	}
 	switch operation {
 	case operationSignIn:
+		account.SetCurrentMembership(account.GetMembershipByAppOrgID(appOrg.ID))
+
 		canSignIn := a.canSignIn(account, code, identifier, appOrg.ID)
 		if !canSignIn {
 			return nil, nil, nil, errors.ErrorData(logutils.StatusInvalid, model.TypeAccount, &logutils.FieldArgs{"app_org_id": appOrg.ID, "code": code, "identifier": identifier})
