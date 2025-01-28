@@ -57,22 +57,23 @@ type oidcAuthImpl struct {
 }
 
 type oidcAuthConfig struct {
-	Host               string            `json:"host" validate:"required"`
-	AuthorizeURL       string            `json:"authorize_url"`
-	TokenURL           string            `json:"token_url"`
-	UserInfoURL        string            `json:"userinfo_url"`
-	Scopes             string            `json:"scopes"`
-	RequestParams      map[string]string `json:"request_params"`
-	TokenParams        map[string]string `json:"token_params"`
-	UseRefresh         bool              `json:"use_refresh"`
-	UsePKCE            bool              `json:"use_pkce"`
-	ClientID           string            `json:"client_id" validate:"required"`
-	ClientSecret       string            `json:"client_secret"`
-	AuthorizeClaims    string            `json:"authorize_claims"`
-	Claims             map[string]string `json:"claims" validate:"required"`
-	RequiredPopulation string            `json:"required_population"`
-	Populations        map[string]string `json:"populations"`
-	RedirectURI        string            `json:"redirect_uri"`
+	Host                 string            `json:"host" validate:"required"`
+	AuthorizeURL         string            `json:"authorize_url"`
+	TokenURL             string            `json:"token_url"`
+	UserInfoURL          string            `json:"userinfo_url"`
+	Scopes               string            `json:"scopes"`
+	RequestParams        map[string]string `json:"request_params"`
+	TokenParams          map[string]string `json:"token_params"`
+	UseRefresh           bool              `json:"use_refresh"`
+	UsePKCE              bool              `json:"use_pkce"`
+	GetUserInfoFromToken bool              `json:"get_user_info_from_token"`
+	ClientID             string            `json:"client_id" validate:"required"`
+	ClientSecret         string            `json:"client_secret"`
+	AuthorizeClaims      string            `json:"authorize_claims"`
+	Claims               map[string]string `json:"claims" validate:"required"`
+	RequiredPopulation   string            `json:"required_population"`
+	Populations          map[string]string `json:"populations"`
+	RedirectURI          string            `json:"redirect_uri"`
 }
 
 type oidcLoginParams struct {
@@ -226,12 +227,12 @@ func (a *oidcAuthImpl) getLoginURL(authType model.AuthType, appType model.Applic
 	return authURL + "?" + query.Encode(), responseParams, nil
 }
 
-func (a *oidcAuthImpl) checkToken(idToken string, authType model.AuthType, appType model.ApplicationType, oidcConfig *oidcAuthConfig, l *logs.Log) (string, error) {
+func (a *oidcAuthImpl) checkToken(idToken string, authType model.AuthType, appType model.ApplicationType, oidcConfig *oidcAuthConfig, l *logs.Log) (string, map[string]interface{}, error) {
 	var err error
 	if oidcConfig == nil {
 		oidcConfig, err = a.getOidcAuthConfig(authType, appType.ID)
 		if err != nil {
-			return "", errors.WrapErrorAction(logutils.ActionGet, typeOidcAuthConfig, nil, err)
+			return "", nil, errors.WrapErrorAction(logutils.ActionGet, typeOidcAuthConfig, nil, err)
 		}
 	}
 
@@ -244,25 +245,25 @@ func (a *oidcAuthImpl) checkToken(idToken string, authType model.AuthType, appTy
 	// Validate the token
 	provider, err := oidc.NewProvider(ctx, oidcProvider)
 	if err != nil {
-		return "", errors.WrapErrorAction(logutils.ActionInitialize, "oidc provider", nil, err)
+		return "", nil, errors.WrapErrorAction(logutils.ActionInitialize, "oidc provider", nil, err)
 	}
 	tokenVerifier := provider.Verifier(&oidc.Config{ClientID: oidcClientID})
 	verifiedToken, err := tokenVerifier.Verify(context.Background(), idToken)
 	if err != nil {
-		return "", errors.WrapErrorAction(logutils.ActionValidate, logutils.TypeToken, nil, err)
+		return "", nil, errors.WrapErrorAction(logutils.ActionValidate, logutils.TypeToken, nil, err)
 	}
 
 	var rawClaims map[string]interface{}
 	if err := verifiedToken.Claims(&rawClaims); err != nil {
-		return "", errors.WrapErrorAction(logutils.ActionUnmarshal, logutils.TypeClaim, nil, err)
+		return "", nil, errors.WrapErrorAction(logutils.ActionUnmarshal, logutils.TypeClaim, nil, err)
 	}
 
 	sub, ok := rawClaims["sub"].(string)
 	if !ok {
-		return "", errors.ErrorData(logutils.StatusInvalid, logutils.TypeClaim, &logutils.FieldArgs{"sub": rawClaims["sub"]})
+		return "", nil, errors.ErrorData(logutils.StatusInvalid, logutils.TypeClaim, &logutils.FieldArgs{"sub": rawClaims["sub"]})
 	}
 
-	return sub, nil
+	return sub, rawClaims, nil
 }
 
 func (a *oidcAuthImpl) newToken(code string, authType model.AuthType, appType model.ApplicationType, appOrg model.ApplicationOrganization, params *oidcLoginParams, oidcConfig *oidcAuthConfig, l *logs.Log) (*model.ExternalSystemUser, map[string]interface{}, string, error) {
@@ -320,34 +321,37 @@ func (a *oidcAuthImpl) loadOidcTokensAndInfo(bodyData map[string]string, oidcCon
 	}
 
 	sub := ""
+	var userClaims map[string]interface{}
 	if token.IDToken != "" {
 		// we should not check the ID token if it is not provided
-		sub, err = a.checkToken(token.IDToken, authType, appType, oidcConfig, l)
+		sub, userClaims, err = a.checkToken(token.IDToken, authType, appType, oidcConfig, l)
 		if err != nil {
 			return nil, nil, "", errors.WrapErrorAction(logutils.ActionValidate, typeOidcToken, nil, err)
 		}
 	}
 
-	userInfoURL := oidcConfig.Host + "/idp/profile/oidc/userinfo"
-	if len(oidcConfig.UserInfoURL) > 0 {
-		userInfoURL = oidcConfig.UserInfoURL
-	}
-	userInfo, err := a.loadOidcUserInfo(token, userInfoURL)
-	if err != nil {
-		return nil, nil, "", errors.WrapErrorAction(logutils.ActionGet, "user info", nil, err)
-	}
+	if !oidcConfig.GetUserInfoFromToken {
+		userInfoURL := oidcConfig.Host + "/idp/profile/oidc/userinfo"
+		if len(oidcConfig.UserInfoURL) > 0 {
+			userInfoURL = oidcConfig.UserInfoURL
+		}
 
-	var userClaims map[string]interface{}
-	err = json.Unmarshal(userInfo, &userClaims)
-	if err != nil {
-		return nil, nil, "", errors.WrapErrorAction(logutils.ActionUnmarshal, "user info", nil, err)
-	}
+		userInfo, err := a.loadOidcUserInfo(token, userInfoURL)
+		if err != nil {
+			return nil, nil, "", errors.WrapErrorAction(logutils.ActionGet, "user info", nil, err)
+		}
 
-	if sub != "" {
-		// we should only perform this check if we get the ID token
-		userClaimsSub, _ := userClaims["sub"].(string)
-		if userClaimsSub != sub {
-			return nil, nil, "", errors.ErrorData("mismatched", "sub fields", &logutils.FieldArgs{"user info": userClaimsSub, "id token": sub})
+		err = json.Unmarshal(userInfo, &userClaims)
+		if err != nil {
+			return nil, nil, "", errors.WrapErrorAction(logutils.ActionUnmarshal, "user info", nil, err)
+		}
+
+		if sub != "" {
+			// we should only perform this check if we get the ID token
+			userClaimsSub, _ := userClaims["sub"].(string)
+			if userClaimsSub != sub {
+				return nil, nil, "", errors.ErrorData("mismatched", "sub fields", &logutils.FieldArgs{"user info": userClaimsSub, "id token": sub})
+			}
 		}
 	}
 

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Added
+- Allow user info endpoint to be avoided during OIDC login [#40](https://github.com/rokmetro/core-building-block-fork/issues/40)
 - Handle client asset files [#436](https://github.com/rokwire/core-building-block/issues/436)
 - WebAuthn authentication [#659](https://github.com/rokwire/core-building-block/issues/659)
 - Searching follows looks for substring matches [#670](https://github.com/rokwire/core-building-block/issues/670)
