@@ -164,9 +164,9 @@ func (app *application) serGetAccounts(limit int, offset int, appID string, orgI
 }
 
 func (app *application) serGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string, firstName *string,
-	lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error) {
+	lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string, ids *[]string) ([]model.PublicAccount, error) {
 	//find the accounts
-	accounts, err := app.storage.FindPublicAccounts(nil, appID, orgID, &limit, &offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID)
+	accounts, err := app.storage.FindPublicAccounts(nil, appID, orgID, &limit, &offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID, ids)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeAccount, nil, err)
 	}
@@ -206,4 +206,19 @@ func (app *application) serGetAppConfig(appTypeIdentifier string, orgID *string,
 
 func (app *application) serGetAppAssetFile(orgID string, appID string, name string) (*model.AppAsset, error) {
 	return app.sharedGetAppAssetFile(orgID, appID, name)
+}
+
+func (app *application) getUserData(appID string, orgID string, accountID string) (*model.UserData, error) {
+	account, err := app.storage.FindAccountByID(nil, &orgID, &appID, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	logginSession, err := app.storage.FindLoginSessionsByParams(appID, orgID, nil, &accountID, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	userData := model.UserData{Account: account, LoginSession: logginSession}
+	return &userData, nil
 }

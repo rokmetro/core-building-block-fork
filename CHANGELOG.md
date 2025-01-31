@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow update username API to create username
 - Fix email with code login and missing membership data [#38](https://github.com/rokmetro/core-building-block-fork/issues/38)
   
+## [1.47.0] - 2025-30-01
+### Added 
+- Consolidate the information, and make it accessible with a single API call [#747](https://github.com/rokwire/core-building-block/issues/747)
+
+## [1.46.0] - 2025-06-01
+### Added 
+- Add filter by ids to public accounts [#744](https://github.com/rokwire/core-building-block/issues/744)
+
 ## [1.45.2] - 2024-18-12
 ### Fixed
 - Fix Case-Insensitive Sorting [#741](https://github.com/rokwire/core-building-block/issues/741)

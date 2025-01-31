@@ -40,7 +40,7 @@ type Services interface {
 		authTypeIdentifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
 
 	SerGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string, firstName *string, lastName *string,
-		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error)
+		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string, ids *[]string) ([]model.PublicAccount, error)
 
 	SerAddFollow(follow model.Follow) error
 	SerDeleteFollow(appID string, orgID string, followingID string, followerID string) error
@@ -51,6 +51,7 @@ type Services interface {
 	SerGetAppConfig(appTypeIdentifier string, orgID *string, versionNumbers model.VersionNumbers, apiKey *string) (*model.ApplicationConfig, error)
 
 	SerGetAppAssetFile(orgID string, appID string, name string) (*model.AppAsset, error)
+	GetUserData(appID string, orgID string, accountID string) (*model.UserData, error)
 }
 
 // Administration exposes administration APIs for the driver adapters
@@ -176,7 +177,7 @@ type Storage interface {
 	FindAccounts(context storage.TransactionContext, limit *int, offset *int, appID string, orgID string, accountID *string, firstName *string, lastName *string, authType *string,
 		identifier *string, anonymous *bool, hasPermissions *bool, permissions []string, roleIDs []string, groupIDs []string) ([]model.Account, error)
 	FindPublicAccounts(context storage.TransactionContext, appID string, orgID string, limit *int, offset *int, search *string, firstName *string, lastName *string,
-		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error)
+		username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string, ids *[]string) ([]model.PublicAccount, error)
 	FindAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]model.Account, error)
 	CountAccountsByParams(searchParams map[string]interface{}, appID string, orgID string) (int64, error)
 	FindAccountsByAccountID(context storage.TransactionContext, appID string, orgID string, accountIDs []string) ([]model.Account, error)

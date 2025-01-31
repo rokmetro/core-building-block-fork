@@ -1062,8 +1062,16 @@ func (h ServicesApisHandler) getPublicAccounts(l *logs.Log, r *http.Request, cla
 		followerID = &followerIDParam
 	}
 
+	//ids
+	var ids *[]string
+	idsParam := query.Get("ids")
+	if idsParam != "" {
+		parsedIDs := strings.Split(idsParam, ",")
+		ids = &parsedIDs
+	}
+
 	unstructuredProperties := make(map[string]string)
-	explicitQueryParams := []string{"limit", "offset", "search", "username", "firstname", "lastname", "following-id", "follower-id"}
+	explicitQueryParams := []string{"limit", "offset", "search", "username", "firstname", "lastname", "following-id", "follower-id", "ids"}
 	for k := range query {
 		if !utils.Contains(explicitQueryParams, k) {
 			unstructuredProperties[k] = query.Get(k)
@@ -1071,7 +1079,7 @@ func (h ServicesApisHandler) getPublicAccounts(l *logs.Log, r *http.Request, cla
 	}
 
 	accounts, err := h.coreAPIs.Services.SerGetPublicAccounts(claims.AppID, claims.OrgID, limit, offset, search,
-		firstName, lastName, username, followingID, followerID, unstructuredProperties, claims.Subject)
+		firstName, lastName, username, followingID, followerID, unstructuredProperties, claims.Subject, ids)
 	if err != nil {
 		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccount, nil, err, http.StatusInternalServerError, true)
 	}
@@ -1407,6 +1415,20 @@ func (h ServicesApisHandler) logout(l *logs.Log, r *http.Request, claims *tokena
 		return l.HTTPResponseErrorAction(logutils.ActionDelete, model.TypeLoginSession, nil, err, http.StatusInternalServerError, true)
 	}
 	return l.HTTPResponseSuccess()
+}
+
+func (h ServicesApisHandler) getUserData(l *logs.Log, r *http.Request, claims *tokenauth.Claims) logs.HTTPResponse {
+	userData, err := h.coreAPIs.Services.GetUserData(claims.AppID, claims.OrgID, claims.Subject)
+	if err != nil {
+		return l.HTTPResponseErrorAction(logutils.ActionGet, model.TypeAccount, nil, err, http.StatusInternalServerError, true)
+	}
+
+	data, err := json.Marshal(userData)
+	if err != nil {
+		return l.HTTPResponseErrorAction(logutils.ActionMarshal, model.TypeAccount, nil, err, http.StatusInternalServerError, false)
+	}
+
+	return l.HTTPResponseSuccessJSON(data)
 }
 
 // NewServicesApisHandler creates new rest services Handler instance

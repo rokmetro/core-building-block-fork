@@ -381,8 +381,8 @@ func (s *servicesImpl) SerGetAccounts(limit int, offset int, appID string, orgID
 }
 
 func (s *servicesImpl) SerGetPublicAccounts(appID string, orgID string, limit int, offset int, search *string,
-	firstName *string, lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string) ([]model.PublicAccount, error) {
-	return s.app.serGetPublicAccounts(appID, orgID, limit, offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID)
+	firstName *string, lastName *string, username *string, followingID *string, followerID *string, unstructuredProperties map[string]string, userID string, ids *[]string) ([]model.PublicAccount, error) {
+	return s.app.serGetPublicAccounts(appID, orgID, limit, offset, search, firstName, lastName, username, followingID, followerID, unstructuredProperties, userID, ids)
 }
 
 func (s *servicesImpl) SerAddFollow(follow model.Follow) error {
@@ -407,6 +407,10 @@ func (s *servicesImpl) SerGetAppConfig(appTypeIdentifier string, orgID *string, 
 
 func (s *servicesImpl) SerGetAppAssetFile(orgID string, appID string, name string) (*model.AppAsset, error) {
 	return s.app.serGetAppAssetFile(orgID, appID, name)
+}
+
+func (s *servicesImpl) GetUserData(appID string, orgID string, accountID string) (*model.UserData, error) {
+	return s.app.getUserData(appID, orgID, accountID)
 }
 
 ///
