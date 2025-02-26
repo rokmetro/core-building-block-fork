@@ -70,7 +70,7 @@ func (a *emailIdentifierImpl) withIdentifier(creds string) (identifierType, erro
 		return nil, errors.WrapErrorAction(logutils.ActionValidate, typeEmailIdentifier, nil, err)
 	}
 
-	email := strings.TrimSpace(requestCreds.Email)
+	email := strings.TrimSpace(strings.ToLower(requestCreds.Email))
 	if !utils.IsValidEmail(email) {
 		return nil, errors.ErrorData(logutils.StatusInvalid, typeEmailIdentifier, &logutils.FieldArgs{"email": email})
 	}
