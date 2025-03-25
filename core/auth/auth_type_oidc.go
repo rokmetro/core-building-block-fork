@@ -310,6 +310,10 @@ func (a *oidcAuthImpl) refreshToken(authType model.AuthType, appType model.Appli
 		"client_id":     oidcConfig.ClientID,
 	}
 
+	for key, val := range oidcConfig.TokenParams {
+		bodyData[key] = val
+	}
+
 	return a.loadOidcTokensAndInfo(bodyData, oidcConfig, authType, appType, appOrg, params.RedirectURI, l)
 }
 
@@ -482,6 +486,9 @@ func (a *oidcAuthImpl) loadOidcTokenWithParams(params map[string]string, oidcCon
 		return nil, errors.WrapErrorAction(logutils.ActionRead, logutils.TypeRequestBody, nil, err)
 	}
 	if resp.StatusCode != 200 {
+		if resp.StatusCode == 400 {
+			l.Debugf("400 response for token request: %v", data)
+		}
 		return nil, errors.ErrorData(logutils.StatusInvalid, logutils.TypeResponse, &logutils.FieldArgs{"status_code": resp.StatusCode, "error": string(body)})
 	}
 
