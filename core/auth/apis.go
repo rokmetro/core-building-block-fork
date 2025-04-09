@@ -25,14 +25,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/rokwire/core-auth-library-go/v3/authorization"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/core-auth-library-go/v3/sigauth"
-	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/sigauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 
-	"github.com/rokwire/logging-library-go/v2/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 )
 
 // Start starts the auth service
@@ -472,7 +472,9 @@ func (a *Auth) Refresh(refreshToken string, apiKey string, clientVersion *string
 			}
 		}
 	}
-	claims := a.getStandardClaims(sub, name, email, phone, username, rokwireTokenAud, orgID, appID, authType, externalIDs, nil, anonymous, false, loginSession.AppOrg.Application.Admin, loginSession.AppOrg.Organization.System, false, true, loginSession.ID, &loginSession.AppOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
+	claims := a.getStandardClaims(sub, name, email, phone, username, []string{rokwireTokenAud}, orgID, appID, authType, externalIDs,
+		nil, anonymous, false, loginSession.AppOrg.Application.Admin, loginSession.AppOrg.Organization.System, false, true, loginSession.ID,
+		&loginSession.AppOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
 	accessToken, err := a.buildAccessToken(claims, strings.Join(permissions, ","), strings.Join(scopes, " "))
 	if err != nil {
 		l.Infof("error generating acccess token on refresh - %s", refreshToken)
@@ -1436,11 +1438,11 @@ func (a *Auth) GetServiceAccountParams(accountID string, firstParty bool, r *sig
 
 	appOrgPairs := make([]model.AppOrgPair, len(accounts))
 	for i, account := range accounts {
-		appID := authutils.AllApps
+		appID := rokwireutils.AllApps
 		if account.Application != nil {
 			appID = account.Application.ID
 		}
-		orgID := authutils.AllOrgs
+		orgID := rokwireutils.AllOrgs
 		if account.Organization != nil {
 			orgID = account.Organization.ID
 		}
@@ -1610,11 +1612,11 @@ func (a *Auth) UpdateServiceAccountInstance(id string, appID string, orgID strin
 
 		//2. find app orgs
 		var appIDParam *string
-		if appID != authutils.AllApps {
+		if appID != rokwireutils.AllApps {
 			appIDParam = &appID
 		}
 		var orgIDParam *string
-		if orgID != authutils.AllOrgs {
+		if orgID != rokwireutils.AllOrgs {
 			orgIDParam = &orgID
 		}
 		appOrgs, err := a.storage.FindApplicationOrganizations(appIDParam, orgIDParam)
@@ -1799,8 +1801,13 @@ func (a *Auth) GetAdminToken(claims tokenauth.Claims, appID string, orgID string
 		return "", errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"org_id": orgID, "app_id": appID})
 	}
 
+	var expiresAt *time.Time
+	if claims.ExpiresAt != nil {
+		expiresAt = &claims.ExpiresAt.Time
+	}
+
 	adminClaims := a.getStandardClaims(claims.Subject, claims.Name, claims.Email, claims.Phone, claims.Username, claims.Audience, orgID, appID, claims.AuthType,
-		claims.ExternalIDs, &claims.ExpiresAt, false, false, true, claims.System, claims.Service, claims.FirstParty, claims.SessionID, &appOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
+		claims.ExternalIDs, expiresAt, false, false, true, claims.System, claims.Service, claims.FirstParty, claims.SessionID, &appOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
 	return a.buildAccessToken(adminClaims, claims.Permissions, claims.Scope)
 }
 

@@ -24,10 +24,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logs"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -885,7 +885,7 @@ func (sa *Adapter) FindPublicAccounts(context TransactionContext, appID string, 
 // FindAccountsByParams finds accounts by an arbitrary set of search params
 func (sa *Adapter) FindAccountsByParams(searchParams map[string]interface{}, appID string, orgID string, limit int, offset int, allAccess bool, approvedKeys []string) ([]map[string]interface{}, error) {
 	//find app orgs accessed by service
-	appOrgs, err := sa.FindApplicationOrganizations(utils.StringOrNil(appID, authutils.AllApps), utils.StringOrNil(orgID, authutils.AllOrgs))
+	appOrgs, err := sa.FindApplicationOrganizations(utils.StringOrNil(appID, rokwireutils.AllApps), utils.StringOrNil(orgID, rokwireutils.AllOrgs))
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
 	}
@@ -924,7 +924,7 @@ func (sa *Adapter) FindAccountsByParams(searchParams map[string]interface{}, app
 // CountAccountsByParams find accounts by an arbitrary set of search params
 func (sa *Adapter) CountAccountsByParams(searchParams map[string]interface{}, appID string, orgID string) (int64, error) {
 	//find app orgs accessed by service
-	appOrgs, err := sa.FindApplicationOrganizations(utils.StringOrNil(appID, authutils.AllApps), utils.StringOrNil(orgID, authutils.AllOrgs))
+	appOrgs, err := sa.FindApplicationOrganizations(utils.StringOrNil(appID, rokwireutils.AllApps), utils.StringOrNil(orgID, rokwireutils.AllOrgs))
 	if err != nil {
 		return -1, errors.WrapErrorAction(logutils.ActionFind, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
 	}
