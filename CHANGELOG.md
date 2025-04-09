@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set up token duration policies for app/orgs [#472](https://github.com/rokwire/core-building-block/issues/472)
 - Expose account date created and updated through API
 ### Changed
+- Replace auth library and logging library with Building Block SDK [#765](https://github.com/rokwire/core-building-block/issues/765)
 - Decouple authentication and verification mechanisms [#665](https://github.com/rokwire/core-building-block/issues/665)
 - Refactor account auth types [#674](https://github.com/rokwire/core-building-block/issues/674)
 - Upgrade dependencies
