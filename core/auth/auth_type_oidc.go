@@ -32,10 +32,10 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 
 	"github.com/coreos/go-oidc"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logs"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 )
 
 const (
@@ -558,7 +558,7 @@ func (a *oidcAuthImpl) getOidcAuthConfig(authType model.AuthType, appTypeID stri
 // generatePkceChallenge generates and returns a PKCE code challenge and verifier
 func generatePkceChallenge() (string, string, error) {
 	codeVerifier := utils.GenerateRandomString(50)
-	codeChallengeBytes, err := authutils.HashSha256([]byte(codeVerifier))
+	codeChallengeBytes, err := rokwireutils.HashSha256([]byte(codeVerifier))
 	if err != nil {
 		return "", "", errors.WrapErrorAction(logutils.ActionCompute, "code verifier hash", nil, err)
 	}
