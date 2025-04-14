@@ -243,6 +243,9 @@ func NewAuth(serviceID string, host string, currentAuthPrivKey *keys.PrivKey, ol
 		logger.Warnf("NewAuth() failed to cache api keys: %v", err)
 	}
 
+	// Encode audience claim as single string rather than array if only one item
+	jwt.MarshalSingleStringAsArray = false
+
 	return authStruct, nil
 
 }
@@ -1323,7 +1326,7 @@ func (a *Auth) createLoginSession(anonymous bool, sub string, authType model.Aut
 			externalIDs[external.Code] = external.Identifier
 		}
 	}
-	claims := a.getStandardClaims(sub, name, email, phone, username, []string{rokwireTokenAud}, orgID, appID, authType.Code, externalIDs, nil, anonymous, true, appOrg.Application.Admin, appOrg.Organization.System, false, true, id, &appOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
+	claims := a.getStandardClaims(sub, name, email, phone, username, rokwireTokenAud, orgID, appID, authType.Code, externalIDs, nil, anonymous, true, appOrg.Application.Admin, appOrg.Organization.System, false, true, id, &appOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
 	accessToken, err := a.buildAccessToken(claims, strings.Join(permissions, ","), strings.Join(scopes, " "))
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionCreate, logutils.TypeToken, nil, err)
@@ -2194,12 +2197,12 @@ func (a *Auth) buildAccessTokenForServiceAccount(account model.ServiceAccount, a
 		orgID = account.Organization.ID
 	}
 
-	aud := []string{}
+	aud := ""
 	services, scope := a.tokenDataForScopes(account.Scopes)
 	if account.FirstParty {
-		aud = append(aud, rokwireTokenAud)
+		aud = rokwireTokenAud
 	} else if len(services) > 0 {
-		aud = services
+		aud = strings.Join(services, ",")
 	}
 
 	claims := a.getStandardClaims(account.AccountID, account.Name, "", "", "", aud, orgID, appID, authType, nil, nil, false, true, false, false, true, account.FirstParty, "", &a.defaultAccessTokenExpirationPolicy)
@@ -2447,7 +2450,7 @@ func (a *Auth) getScopedAccessToken(claims tokenauth.Claims, serviceID string, s
 		expiresAt = &claims.ExpiresAt.Time
 	}
 
-	scopedClaims := a.getStandardClaims(claims.Subject, "", "", "", "", aud, claims.OrgID, claims.AppID, claims.AuthType, claims.ExternalIDs,
+	scopedClaims := a.getStandardClaims(claims.Subject, "", "", "", "", strings.Join(aud, ","), claims.OrgID, claims.AppID, claims.AuthType, claims.ExternalIDs,
 		expiresAt, claims.Anonymous, claims.Authenticated, false, false, claims.Service, false, claims.SessionID, nil)
 	return a.buildAccessToken(scopedClaims, "", scope)
 }
@@ -2465,11 +2468,11 @@ func (a *Auth) tokenDataForScopes(scopes []authorization.Scope) ([]string, strin
 	return services, strings.Join(scopeStrings, " ")
 }
 
-func (a *Auth) getStandardClaims(sub string, name string, email string, phone string, username string, aud []string, orgID string, appID string, authType string, externalIDs map[string]string,
+func (a *Auth) getStandardClaims(sub string, name string, email string, phone string, username string, aud string, orgID string, appID string, authType string, externalIDs map[string]string,
 	exp *time.Time, anonymous bool, authenticated bool, admin bool, system bool, service bool, firstParty bool, sessionID string, accessTokenExpPolicy *model.AccessTokenExpirationPolicy) tokenauth.Claims {
 	return tokenauth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Audience:  jwt.ClaimStrings(aud),
+			Audience:  jwt.ClaimStrings([]string{aud}), // TODO: we originally used a single comma-separated string, but this claim now supports a list of strings. Switching to the list of strings would be a breaking change.
 			Subject:   sub,
 			ExpiresAt: jwt.NewNumericDate(a.getExp(exp, accessTokenExpPolicy)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

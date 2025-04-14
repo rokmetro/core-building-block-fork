@@ -472,7 +472,7 @@ func (a *Auth) Refresh(refreshToken string, apiKey string, clientVersion *string
 			}
 		}
 	}
-	claims := a.getStandardClaims(sub, name, email, phone, username, []string{rokwireTokenAud}, orgID, appID, authType, externalIDs,
+	claims := a.getStandardClaims(sub, name, email, phone, username, rokwireTokenAud, orgID, appID, authType, externalIDs,
 		nil, anonymous, false, loginSession.AppOrg.Application.Admin, loginSession.AppOrg.Organization.System, false, true, loginSession.ID,
 		&loginSession.AppOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
 	accessToken, err := a.buildAccessToken(claims, strings.Join(permissions, ","), strings.Join(scopes, " "))
@@ -1806,7 +1806,11 @@ func (a *Auth) GetAdminToken(claims tokenauth.Claims, appID string, orgID string
 		expiresAt = &claims.ExpiresAt.Time
 	}
 
-	adminClaims := a.getStandardClaims(claims.Subject, claims.Name, claims.Email, claims.Phone, claims.Username, claims.Audience, orgID, appID, claims.AuthType,
+	aud := ""
+	if len(claims.Audience) > 0 {
+		aud = claims.Audience[0]
+	}
+	adminClaims := a.getStandardClaims(claims.Subject, claims.Name, claims.Email, claims.Phone, claims.Username, aud, orgID, appID, claims.AuthType,
 		claims.ExternalIDs, expiresAt, false, false, true, claims.System, claims.Service, claims.FirstParty, claims.SessionID, &appOrg.LoginsSessionsSetting.AccessTokenExpirationPolicy)
 	return a.buildAccessToken(adminClaims, claims.Permissions, claims.Scope)
 }
