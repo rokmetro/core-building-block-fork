@@ -186,6 +186,12 @@ const (
 	SharedResRokwireTokenTokenTypeBearer SharedResRokwireTokenTokenType = "Bearer"
 )
 
+// Defines values for GetServicesV2AccountsPublicParamsOrder.
+const (
+	Asc  GetServicesV2AccountsPublicParamsOrder = "asc"
+	Desc GetServicesV2AccountsPublicParamsOrder = "desc"
+)
+
 // APIKey API key record
 type APIKey struct {
 	AppId string  `json:"app_id"`
@@ -627,7 +633,7 @@ type Permission struct {
 // Privacy defines model for Privacy.
 type Privacy struct {
 	FieldVisibility *map[string]interface{} `json:"field_visibility"`
-	Public          *bool                   `json:"public,omitempty"`
+	Public          *bool                   `json:"public"`
 }
 
 // PrivacyNullable defines model for PrivacyNullable.
@@ -639,7 +645,9 @@ type PrivacyNullable struct {
 // Profile defines model for Profile.
 type Profile struct {
 	Address   *string `json:"address"`
+	Address2  *string `json:"address2"`
 	BirthYear *int    `json:"birth_year"`
+	City      *string `json:"city"`
 	Country   *string `json:"country"`
 	// Deprecated:
 	Email     *string `json:"email"`
@@ -649,6 +657,7 @@ type Profile struct {
 	// Deprecated:
 	Phone                  *string                 `json:"phone"`
 	PhotoUrl               *string                 `json:"photo_url,omitempty"`
+	PoBox                  *string                 `json:"po_box"`
 	Pronouns               *string                 `json:"pronouns,omitempty"`
 	PronunciationUrl       *string                 `json:"pronunciation_url,omitempty"`
 	State                  *string                 `json:"state"`
@@ -660,7 +669,9 @@ type Profile struct {
 // ProfileNullable defines model for ProfileNullable.
 type ProfileNullable struct {
 	Address   *string `json:"address"`
+	Address2  *string `json:"address2"`
 	BirthYear *int    `json:"birth_year"`
+	City      *string `json:"city"`
 	Country   *string `json:"country"`
 	// Deprecated:
 	Email     *string `json:"email"`
@@ -669,6 +680,7 @@ type ProfileNullable struct {
 	// Deprecated:
 	Phone                  *string                 `json:"phone"`
 	PhotoUrl               *string                 `json:"photo_url"`
+	PoBox                  *string                 `json:"po_box"`
 	Pronouns               *string                 `json:"pronouns"`
 	PronunciationUrl       *string                 `json:"pronunciation_url"`
 	State                  *string                 `json:"state"`
@@ -1010,6 +1022,13 @@ type ServicesResAccountAuthTypeLink struct {
 type ServicesResAccountIdentifierLink struct {
 	Identifiers []AccountIdentifier `json:"identifiers"`
 	Message     *string             `json:"message"`
+}
+
+// ServicesResAccountsPublic defines model for _services_res_accounts-public.
+type ServicesResAccountsPublic struct {
+	Accounts []PublicAccount `json:"accounts"`
+	Counts   map[string]int  `json:"counts"`
+	Total    int             `json:"total"`
 }
 
 // ServicesResAuthorizeService defines model for _services_res_authorize-service.
@@ -1647,6 +1666,45 @@ type GetServicesAuthServiceRegsParams struct {
 	// Ids A comma-separated list of service IDs to return registrations for
 	Ids string `form:"ids" json:"ids"`
 }
+
+// GetServicesV2AccountsPublicParams defines parameters for GetServicesV2AccountsPublic.
+type GetServicesV2AccountsPublicParams struct {
+	// Limit The maximum number of accounts to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset The comma-separated name and ID of the first account to return (lastname,firstname,id)
+	Offset *string `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Order The sort order to return accounts
+	Order *GetServicesV2AccountsPublicParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Search The search for username, firstname, or lastname
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
+	// Username The username
+	Username *string `form:"username,omitempty" json:"username,omitempty"`
+
+	// Firstname The account profile first name
+	Firstname *string `form:"firstname,omitempty" json:"firstname,omitempty"`
+
+	// Lastname The account profile last name
+	Lastname *string `form:"lastname,omitempty" json:"lastname,omitempty"`
+
+	// FollowingId The ID of the account being followed
+	FollowingId *string `form:"following-id,omitempty" json:"following-id,omitempty"`
+
+	// FollowerId The ID of the account following
+	FollowerId *string `form:"follower-id,omitempty" json:"follower-id,omitempty"`
+
+	// UnstructuredProperties Map containing filters by unstructured properties in profile
+	UnstructuredProperties *map[string]interface{} `form:"unstructured_properties,omitempty" json:"unstructured_properties,omitempty"`
+
+	// Ids A comma-separated list of IDs
+	Ids *string `form:"ids,omitempty" json:"ids,omitempty"`
+}
+
+// GetServicesV2AccountsPublicParamsOrder defines parameters for GetServicesV2AccountsPublic.
+type GetServicesV2AccountsPublicParamsOrder string
 
 // DeleteSystemApiKeysParams defines parameters for DeleteSystemApiKeys.
 type DeleteSystemApiKeysParams struct {

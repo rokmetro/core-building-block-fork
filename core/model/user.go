@@ -74,6 +74,9 @@ const (
 	//ProfileFieldUnstructuredProperties is the reflect name of the unstructured properties field in Profile
 	ProfileFieldUnstructuredProperties string = "UnstructuredProperties"
 
+	//VisibilityTag is the tag used for setting and evaluating visibility settings on account fields
+	VisibilityTag string = "visibility"
+
 	//VisibilityPublic indicates a field is visible to all other app org members
 	VisibilityPublic string = "public"
 	//VisibilityConnections indicates a field is visible to user-connected app org members
@@ -84,13 +87,18 @@ const (
 
 // Privacy represents the privacy options for each account
 type Privacy struct {
-	Public          bool                   `json:"public" bson:"public"`
-	FieldVisibility map[string]interface{} `json:"field_visibility" bson:"field_visibility"`
+	Public          *bool                   `json:"public" bson:"public"`
+	FieldVisibility *map[string]interface{} `json:"field_visibility" bson:"field_visibility"`
 }
 
 // GetFieldVisibility determines the privacy setting for the account data at path
 func (p *Privacy) GetFieldVisibility(path string) (string, error) {
-	visibilityEntry := utils.GetMapEntryFromPath(p.FieldVisibility, path)
+	fieldVisibility := p.FieldVisibility
+	if fieldVisibility == nil {
+		return VisibilityPrivate, nil
+	}
+
+	visibilityEntry := utils.GetMapEntryFromPath(*fieldVisibility, path)
 	if visibilityEntry == nil {
 		return VisibilityPrivate, nil
 	}
@@ -115,10 +123,10 @@ func (p *Privacy) IsFieldVisible(path string, isConnection bool) (bool, error) {
 // ValidateFieldVisibility ensures each entry in visibilityMap is either another map or one of the three allowed visbility strings (public, connections, private)
 func (p *Privacy) ValidateFieldVisibility(visibilityMap map[string]interface{}) error {
 	if len(visibilityMap) == 0 {
-		if len(p.FieldVisibility) == 0 {
+		if p.FieldVisibility == nil || len(*p.FieldVisibility) == 0 {
 			return nil
 		}
-		visibilityMap = p.FieldVisibility
+		visibilityMap = *p.FieldVisibility
 	}
 
 	for k, v := range visibilityMap {
@@ -196,13 +204,13 @@ type Account struct {
 
 	Scopes []string
 
-	Identifiers []AccountIdentifier `json:"identifiers"`
+	Identifiers []AccountIdentifier `visibility:"identifiers"`
 	AuthTypes   []AccountAuthType
 
 	MFATypes []MFAType
 
 	SystemConfigs map[string]interface{}
-	Profile       Profile `json:"profile"` //one account has one profile
+	Profile       Profile `visibility:"profile"` //one account has one profile
 	Privacy       Privacy
 
 	Devices []Device
@@ -568,11 +576,11 @@ func (a *Account) GetPublicProfile(isConnection bool) (*PublicProfile, error) {
 	accountType := reflect.TypeOf(a).Elem()
 	profileField, _ := accountType.FieldByName(AccountFieldProfile)
 	profileValue := reflect.ValueOf(&a.Profile).Elem()
-	for i := 0; i < profileField.Type.NumField(); i++ {
+	for i := range profileField.Type.NumField() {
 		field := profileField.Type.Field(i)
 		fieldValue := profileValue.Field(i)
-		fieldTag := field.Tag.Get("json")
-		visibilityPath := fmt.Sprintf("%s.%s", profileField.Tag.Get("json"), fieldTag)
+		fieldTag := field.Tag.Get(VisibilityTag)
+		visibilityPath := fmt.Sprintf("%s.%s", profileField.Tag.Get(VisibilityTag), fieldTag)
 		if field.Name == ProfileFieldUnstructuredProperties {
 			for k, v := range a.Profile.UnstructuredProperties {
 				visible, err := a.Privacy.IsFieldVisible(fmt.Sprintf("%s.%s", visibilityPath, k), isConnection)
@@ -612,7 +620,7 @@ func (a *Account) GetPublicIdentifiers(isConnection bool) ([]PublicAccountIdenti
 
 	accountType := reflect.TypeOf(a).Elem()
 	identifiersField, _ := accountType.FieldByName(AccountFieldIdentifiers)
-	identifiersTag := identifiersField.Tag.Get("json")
+	identifiersTag := identifiersField.Tag.Get(VisibilityTag)
 	publicIdentifiers := make([]PublicAccountIdentifier, 0)
 	for _, identifier := range a.Identifiers {
 		path := fmt.Sprintf("%s.%s", identifiersTag, identifier.ID)
@@ -787,23 +795,26 @@ type MFAType struct {
 //	 What the person shares with the system/other users/
 //		The person should be able to use the system even all profile fields are empty/it is just an information for the user/
 type Profile struct {
-	ID string `json:"id"`
+	ID string `visibility:"id"`
 
-	PhotoURL         string `json:"photo_url"`
-	PronunciationURL string `json:"pronunciation_url"`
-	Pronouns         string `json:"pronouns"`
-	FirstName        string `json:"first_name"`
-	LastName         string `json:"last_name"`
-	Email            string `json:"email"`
-	Phone            string `json:"phone"`
-	BirthYear        int16  `json:"birth_year"`
-	Address          string `json:"address"`
-	ZipCode          string `json:"zip_code"`
-	State            string `json:"state"`
-	Country          string `json:"country"`
-	Website          string `json:"website"`
+	PhotoURL         string `visibility:"photo_url"`
+	PronunciationURL string `visibility:"pronunciation_url"`
+	Pronouns         string `visibility:"pronouns"`
+	FirstName        string `visibility:"first_name"`
+	LastName         string `visibility:"last_name"`
+	Email            string `visibility:"email"`
+	Phone            string `visibility:"phone"`
+	BirthYear        int16  `visibility:"birth_year"`
+	Address          string `visibility:"address"`
+	Address2         string `visibility:"address2"`
+	POBox            string `visibility:"po_box"`
+	City             string `visibility:"city"`
+	ZipCode          string `visibility:"zip_code"`
+	State            string `visibility:"state"`
+	Country          string `visibility:"country"`
+	Website          string `visibility:"website"`
 
-	UnstructuredProperties map[string]interface{} `json:"unstructured_properties"`
+	UnstructuredProperties map[string]interface{} `visibility:"unstructured_properties"`
 
 	DateCreated time.Time
 	DateUpdated *time.Time
@@ -829,6 +840,15 @@ func (p Profile) Merge(src Profile) Profile {
 	}
 	if src.Address != "" {
 		p.Address = src.Address
+	}
+	if src.Address2 != "" {
+		p.Address2 = src.Address2
+	}
+	if src.POBox != "" {
+		p.POBox = src.POBox
+	}
+	if src.City != "" {
+		p.City = src.City
 	}
 	if src.ZipCode != "" {
 		p.ZipCode = src.ZipCode
@@ -878,6 +898,18 @@ func ProfileFromMap(profileMap map[string]interface{}, profileFields map[string]
 			if typeVal, ok := val.(string); ok {
 				profile.Address = typeVal
 			}
+		} else if key == "address2" {
+			if typeVal, ok := val.(string); ok {
+				profile.Address2 = typeVal
+			}
+		} else if key == "po_box" {
+			if typeVal, ok := val.(string); ok {
+				profile.POBox = typeVal
+			}
+		} else if key == "city" {
+			if typeVal, ok := val.(string); ok {
+				profile.City = typeVal
+			}
 		} else if key == "zip_code" {
 			if typeVal, ok := val.(string); ok {
 				profile.ZipCode = typeVal
@@ -894,8 +926,6 @@ func ProfileFromMap(profileMap map[string]interface{}, profileFields map[string]
 			if typeVal, ok := val.(string); ok {
 				profile.PhotoURL = typeVal
 			}
-		} else {
-			profile.UnstructuredProperties[key] = val
 		}
 	}
 
@@ -909,20 +939,23 @@ func ProfileFromMap(profileMap map[string]interface{}, profileFields map[string]
 
 // PublicProfile defines model for PublicProfile.
 type PublicProfile struct {
-	Address                *string                `json:"address,omitempty"`
-	BirthYear              *int16                 `json:"birth_year,omitempty"`
-	Country                *string                `json:"country,omitempty"`
-	Email                  *string                `json:"email,omitempty"`
-	FirstName              *string                `json:"first_name,omitempty"`
-	LastName               *string                `json:"last_name,omitempty"`
-	Phone                  *string                `json:"phone,omitempty"`
-	PhotoURL               *string                `json:"photo_url,omitempty"`
-	PronunciationURL       *string                `json:"pronunciation_url,omitempty"`
-	Pronouns               *string                `json:"pronouns,omitempty"`
-	State                  *string                `json:"state,omitempty"`
-	UnstructuredProperties map[string]interface{} `json:"unstructured_properties,omitempty"`
-	Website                *string                `json:"website,omitempty"`
-	ZipCode                *string                `json:"zip_code,omitempty"`
+	Address                *string
+	Address2               *string
+	POBox                  *string
+	City                   *string
+	BirthYear              *int16
+	Country                *string
+	Email                  *string
+	FirstName              *string
+	LastName               *string
+	Phone                  *string
+	PhotoURL               *string
+	PronunciationURL       *string
+	Pronouns               *string
+	State                  *string
+	UnstructuredProperties map[string]interface{}
+	Website                *string
+	ZipCode                *string
 }
 
 // Device represents user devices entity.
@@ -1010,19 +1043,19 @@ type AccountRelations struct {
 
 // PublicAccount shows public account information
 type PublicAccount struct {
-	ID           string `json:"id"`
-	Verified     bool   `json:"verified"`
-	IsFollowing  bool   `json:"is_following"`  // remove?
-	IsConnection bool   `json:"is_connection"` // whether a user requesting this public account info is connected to the account's user
+	ID           string
+	Verified     bool
+	IsFollowing  bool // remove?
+	IsConnection bool // whether a user requesting this public account info is connected to the account's user
 
-	Profile     PublicProfile             `json:"profile"`
-	Identifiers []PublicAccountIdentifier `json:"identifiers"`
+	Profile     PublicProfile
+	Identifiers []PublicAccountIdentifier
 }
 
 // PublicAccountIdentifier represents an account identifier made publicly-known by a user
 type PublicAccountIdentifier struct {
-	Code       string `json:"code"`
-	Identifier string `json:"identifier"`
+	Code       string
+	Identifier string
 }
 
 // Follow shows the relationship between user and follower

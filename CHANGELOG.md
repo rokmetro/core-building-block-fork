@@ -28,6 +28,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix email with code login and missing membership data [#38](https://github.com/rokmetro/core-building-block-fork/issues/38)
 - Make email identifiers case insensitive [#43](https://github.com/rokmetro/core-building-block-fork/issues/43)
   
+## [1.51.0] - 2025-02-005
+### Added
+- Support public accounts reverse pagination and total count [#766](https://github.com/rokwire/core-building-block/issues/766)
+
+## [1.50.0] - 2025-24-04
+### Added
+- Additional profile fields needed (added profile address fields) [#762](https://github.com/rokwire/core-building-block/issues/762)
+
+### Changed
+- Additional profile fields needed [#762](https://github.com/rokwire/core-building-block/issues/762)
+
+## [1.49.0] - 2025-16-04
+### Changed
+- Support Google Trust Services as CA [#767](https://github.com/rokwire/core-building-block/issues/767)
+
+## [1.48.2] - 2025-20-02
+### Fixed
+- Disable default privacy setting [#759](https://github.com/rokwire/core-building-block/issues/759)
+
+## [1.48.1] - 2025-19-02
+### Fixed
+- Fix privacy format [#755](https://github.com/rokwire/core-building-block/issues/755)
+
+## [1.48.0] - 2025-18-02
+### Changed
+- Default privacy for new accounts [#752](https://github.com/rokwire/core-building-block/issues/752)
+
 ## [1.47.0] - 2025-30-01
 ### Added 
 - Consolidate the information, and make it accessible with a single API call [#747](https://github.com/rokwire/core-building-block/issues/747)

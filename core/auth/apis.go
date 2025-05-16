@@ -2109,7 +2109,7 @@ func (a *Auth) InitializeSystemAccount(context storage.TransactionContext, authT
 	allSystemPermission string, email string, password string, clientVersion string, l *logs.Log) (string, error) {
 	now := time.Now().UTC()
 	profile := model.Profile{ID: uuid.NewString(), DateCreated: now}
-	privacy := model.Privacy{Public: false}
+	privacy := model.Privacy{Public: nil}
 	permissions := []string{allSystemPermission}
 
 	credsMap := passwordCreds{Password: password}
