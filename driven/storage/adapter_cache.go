@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
 	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
