@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/golang:1.23-alpine as builder
+FROM public.ecr.aws/docker/library/golang:1.24-alpine as builder
 
 ENV CGO_ENABLED=0
 
@@ -32,8 +32,8 @@ COPY --from=builder /app/driver/web/authorization_system_policy.csv /driver/web/
 
 COPY --from=builder /app/driver/web/scope_authorization_services_policy.csv /driver/web/scope_authorization_services_policy.csv
 
-COPY --from=builder /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_scope.conf /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_scope.conf
-COPY --from=builder /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_string.conf /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_string.conf
+COPY --from=builder /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_scope.conf /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_scope.conf
+COPY --from=builder /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_string.conf /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_string.conf
 
 COPY --from=builder /etc/passwd /etc/passwd
 

@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/rokwire/core-auth-library-go/v3/authorization"
-	"github.com/rokwire/core-auth-library-go/v3/sigauth"
-	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
-	"github.com/rokwire/logging-library-go/v2/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/sigauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
 )
 
 // identifierType is the interface for auth identifiers that are not external to the system

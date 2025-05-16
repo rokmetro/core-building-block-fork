@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix email with code login and missing membership data [#38](https://github.com/rokmetro/core-building-block-fork/issues/38)
 - Make email identifiers case insensitive [#43](https://github.com/rokmetro/core-building-block-fork/issues/43)
   
+### Changed
+- Replace auth library and logging library with Building Block SDK [#765](https://github.com/rokwire/core-building-block/issues/765)
+
 ## [1.51.0] - 2025-02-005
 ### Added
 - Support public accounts reverse pagination and total count [#766](https://github.com/rokwire/core-building-block/issues/766)

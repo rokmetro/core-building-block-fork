@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -697,7 +697,7 @@ func (sa *Adapter) getCachedApplicationOrganizationsByKeySubstring(substring str
 }
 
 func (sa *Adapter) getAppOrgIDsByAppOrgPair(appID string, orgID string) ([]string, error) {
-	if appID != authutils.AllApps && orgID != authutils.AllOrgs {
+	if appID != rokwireutils.AllApps && orgID != rokwireutils.AllOrgs {
 		appOrg, err := sa.getCachedApplicationOrganization(appID, orgID)
 		if err != nil {
 			return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
@@ -709,7 +709,7 @@ func (sa *Adapter) getAppOrgIDsByAppOrgPair(appID string, orgID string) ([]strin
 		return []string{appOrg.ID}, nil
 	}
 
-	key := strings.ReplaceAll(fmt.Sprintf("%s_%s", appID, orgID), authutils.AllApps, "")
+	key := strings.ReplaceAll(fmt.Sprintf("%s_%s", appID, orgID), rokwireutils.AllApps, "")
 	if key != "_" {
 		appOrgs, err := sa.getCachedApplicationOrganizationsByKeySubstring(key)
 		if err != nil {
@@ -726,7 +726,7 @@ func (sa *Adapter) getAppOrgIDsByAppOrgPair(appID string, orgID string) ([]strin
 		return ids, nil
 	}
 
-	return nil, nil // nil slice for appID=authutils.AllApps, orgID=authutils.AllOrgs
+	return nil, nil // nil slice for appID=rokwireutils.AllApps, orgID=rokwireutils.AllOrgs
 }
 
 // APP CONFIGS

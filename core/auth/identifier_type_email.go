@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -305,9 +305,9 @@ func (a *emailIdentifierImpl) getVerificationSettings() (*int, *int, error) {
 	// Time in hours before auth code expires (default is 24)
 	verifyExpiry := 24
 
-	config, err := a.auth.storage.FindConfig(model.ConfigTypeAuth, authutils.AllApps, authutils.AllOrgs)
+	config, err := a.auth.storage.FindConfig(model.ConfigTypeAuth, rokwireutils.AllApps, rokwireutils.AllOrgs)
 	if err != nil {
-		return nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": authutils.AllApps, "org_id": authutils.AllOrgs}, err)
+		return nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": rokwireutils.AllApps, "org_id": rokwireutils.AllOrgs}, err)
 	}
 	if config != nil {
 		authConfigData, err := model.GetConfigData[model.AuthConfigData](*config)

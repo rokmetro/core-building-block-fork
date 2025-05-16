@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logs"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 )
 
 // APIs exposes to the drivers adapters access to the core functionality
@@ -116,16 +116,16 @@ func (c *APIs) storeSystemData() error {
 		}
 
 		//2. update auth config or insert if it does not exist
-		config, err := c.app.storage.FindConfig(model.ConfigTypeAuth, authutils.AllApps, authutils.AllOrgs)
+		config, err := c.app.storage.FindConfig(model.ConfigTypeAuth, rokwireutils.AllApps, rokwireutils.AllOrgs)
 		if err != nil {
-			return errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": authutils.AllApps, "org_id": authutils.AllOrgs}, err)
+			return errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": rokwireutils.AllApps, "org_id": rokwireutils.AllOrgs}, err)
 		}
 		if config == nil {
 			configData := model.AuthConfigData{EmailShouldVerify: &c.verifyEmail, EmailVerifyWaitTime: &c.verifyWaitTime, EmailVerifyExpiry: &c.verifyExpiry}
-			newConfig := model.Config{ID: uuid.NewString(), Type: model.ConfigTypeAuth, AppID: authutils.AllApps, OrgID: authutils.AllOrgs, System: true, Data: configData, DateCreated: time.Now().UTC()}
+			newConfig := model.Config{ID: uuid.NewString(), Type: model.ConfigTypeAuth, AppID: rokwireutils.AllApps, OrgID: rokwireutils.AllOrgs, System: true, Data: configData, DateCreated: time.Now().UTC()}
 			err = c.app.storage.InsertConfig(context, newConfig)
 			if err != nil {
-				return errors.WrapErrorAction(logutils.ActionInsert, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": authutils.AllApps, "org_id": authutils.AllOrgs}, err)
+				return errors.WrapErrorAction(logutils.ActionInsert, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": rokwireutils.AllApps, "org_id": rokwireutils.AllOrgs}, err)
 			}
 		} else {
 			configData, err := model.GetConfigData[model.AuthConfigData](*config)
