@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization"
 	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/sigauth"
 	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
@@ -2488,7 +2488,7 @@ func (a *Auth) GetAuthKeySet() (jwk.Set, error) {
 		return nil, errors.ErrorData(logutils.StatusMissing, model.TypePubKey, nil)
 	}
 
-	webKey, err := jwk.New(authReg.PubKey.Key)
+	webKey, err := jwk.Import(authReg.PubKey.Key)
 	if err != nil || webKey == nil {
 		return nil, errors.WrapErrorAction(logutils.ActionCreate, model.TypeJSONWebKey, nil, err)
 	}
@@ -2506,7 +2506,7 @@ func (a *Auth) GetAuthKeySet() (jwk.Set, error) {
 	}
 
 	keySet := jwk.NewSet()
-	keySet.Add(webKey)
+	keySet.AddKey(webKey)
 	return keySet, nil
 }
 
