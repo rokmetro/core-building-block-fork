@@ -20,9 +20,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 )
 
 const (
@@ -52,6 +52,8 @@ const (
 	TypeApplicationConfigsVersion logutils.MessageDataType = "app config version number"
 	//TypeVersionNumbers ...
 	TypeVersionNumbers logutils.MessageDataType = "version numbers"
+	//TypeAppAsset app asset
+	TypeAppAsset logutils.MessageDataType = "app asset"
 
 	//PermissionAllSystemCore ...
 	PermissionAllSystemCore string = "all_system_core"
@@ -86,7 +88,7 @@ type PermissionContainer interface {
 
 // CheckAssigners checks if the passed permissions satisfy the needed assigners for the permission
 func (p Permission) CheckAssigners(assignerPermissions []string) error {
-	if authutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
+	if rokwireutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
 		return nil
 	}
 	if len(p.Assigners) == 0 {
@@ -95,7 +97,7 @@ func (p Permission) CheckAssigners(assignerPermissions []string) error {
 
 	authorizedAssigners := p.Assigners
 	for _, authorizedAssigner := range authorizedAssigners {
-		if authutils.ContainsString(assignerPermissions, authorizedAssigner) {
+		if rokwireutils.ContainsString(assignerPermissions, authorizedAssigner) {
 			return nil
 		}
 	}
@@ -136,7 +138,7 @@ type RoleContainer interface {
 
 // CheckAssigners checks if the passed permissions satisfy the needed assigners for all role permissions
 func (c AppOrgRole) CheckAssigners(assignerPermissions []string) error {
-	if authutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
+	if rokwireutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
 		return nil
 	}
 	if len(c.Permissions) == 0 {
@@ -200,7 +202,7 @@ type AppOrgGroup struct {
 
 // CheckAssigners checks if the passed permissions satisfy the needed assigners for the group
 func (cg AppOrgGroup) CheckAssigners(assignerPermissions []string) error {
-	if authutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
+	if rokwireutils.ContainsString(assignerPermissions, PermissionGrantAllPermissions) {
 		return nil
 	}
 
@@ -276,13 +278,7 @@ type Application struct {
 
 	MultiTenant bool //safer community is multi-tenant
 	Admin       bool //is this an admin app?
-
-	//if to share identities between the organizations within the appication or to use e separate identities for every organization
-	//if true - the user uses shared profile between all organizations within the application
-	//if false - the user uses a separate profile for every organization within the application
-	SharedIdentities bool
-
-	Types []ApplicationType
+	Types       []ApplicationType
 
 	Organizations []ApplicationOrganization
 
@@ -364,6 +360,21 @@ func (ao ApplicationOrganization) FindSupportedAuthType(appType ApplicationType,
 	return nil
 }
 
+// AppAsset represents application asset entity
+type AppAsset struct {
+	ID string `bson:"_id"`
+
+	AppID string `bson:"app_id"`
+	OrgID string `bson:"org_id"`
+
+	Name string `bson:"name"`
+
+	Data map[string]interface{} `bson:"data"`
+
+	DateCreated time.Time  `bson:"date_created"`
+	DateUpdated *time.Time `bson:"date_updated"`
+}
+
 // IdentityProviderSetting represents identity provider setting for an organization in an application
 //
 //	 User specific fields
@@ -388,14 +399,18 @@ type IdentityProviderSetting struct {
 	EmailField      string `bson:"email_field"`
 	RolesField      string `bson:"roles_field"`
 	GroupsField     string `bson:"groups_field"`
+	FerpaField      string `bson:"ferpa_field"`
 
 	UserSpecificFields []string `bson:"user_specific_fields"`
 
-	AlwaysSyncProfile bool   `bson:"always_sync_profile"` // if true, profile data will be overwritten with data from external user on each login/refresh
-	IdentityBBBaseURL string `bson:"identity_bb_base_url"`
+	AlwaysSyncProfile       bool              `bson:"always_sync_profile"` // if true, profile data will be overwritten with data from external user on each login/refresh
+	IdentityBBBaseURL       string            `bson:"identity_bb_base_url"`
+	IdentityBBProfileFields map[string]string `bson:"identity_bb_profile_fields"` // a map from paths into the data returned by the Identity BB to keys in Profile.UnstructuredProperties
 
 	Roles  map[string]string `bson:"roles"`  //map[identity_provider_role]app_role_id
 	Groups map[string]string `bson:"groups"` //map[identity_provider_group]app_group_id
+
+	AdminAppAccessRoles []string `bson:"admin_app_access_roles"` //list with the identity provider roles which are approved for admin app account creation
 }
 
 // LoginsSessionsSetting represents logins sessions setting for an organization in an application

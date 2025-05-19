@@ -17,25 +17,25 @@ package identitybb
 import (
 	"core-building-block/core/model"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
-	"github.com/rokwire/core-auth-library-go/v3/authservice"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth"
 
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logs"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 )
 
 // Adapter implements the IdentityBuildingBlock interface
 type Adapter struct {
-	serviceAccountManager *authservice.ServiceAccountManager
+	serviceAccountManager *auth.ServiceAccountManager
 }
 
 // GetUserProfile gets user profile info for the provided user credentials
-func (a *Adapter) GetUserProfile(baseURL string, externalUser model.ExternalSystemUser, externalAccessToken string, l *logs.Log) (*model.Profile, error) {
+func (a *Adapter) GetUserProfile(baseURL string, externalUser model.ExternalSystemUser, externalAccessToken string, profileFields map[string]string, l *logs.Log) (*model.Profile, error) {
 	if baseURL == "" || externalAccessToken == "" {
 		return nil, errors.ErrorData(logutils.StatusMissing, "base url", nil)
 	}
@@ -57,13 +57,13 @@ func (a *Adapter) GetUserProfile(baseURL string, externalUser model.ExternalSyst
 
 	req.Header.Set("External-Authorization", externalAccessToken)
 
-	resp, err := a.serviceAccountManager.MakeRequest(req, authutils.AllApps, authutils.AllOrgs)
+	resp, err := a.serviceAccountManager.MakeRequest(req, rokwireutils.AllApps, rokwireutils.AllOrgs)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionSend, logutils.TypeRequest, nil, err)
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionRead, logutils.TypeResponse, nil, err)
 	}
@@ -80,12 +80,12 @@ func (a *Adapter) GetUserProfile(baseURL string, externalUser model.ExternalSyst
 		return nil, errors.WrapErrorAction(logutils.ActionUnmarshal, logutils.TypeResponseBody, nil, err)
 	}
 
-	profile := model.ProfileFromMap(profileData)
+	profile := model.ProfileFromMap(profileData, profileFields)
 
 	return &profile, nil
 }
 
 // NewIdentityBBAdapter creates a new identity building block adapter instance
-func NewIdentityBBAdapter(serviceAccountManager *authservice.ServiceAccountManager) *Adapter {
+func NewIdentityBBAdapter(serviceAccountManager *auth.ServiceAccountManager) *Adapter {
 	return &Adapter{serviceAccountManager: serviceAccountManager}
 }

@@ -16,10 +16,14 @@ package model
 
 import (
 	"core-building-block/utils"
+	"fmt"
+	"reflect"
+	"slices"
 	"sort"
 	"time"
 
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 )
 
 const (
@@ -57,11 +61,123 @@ const (
 	TypeDevice logutils.MessageDataType = "device"
 	//TypeFollow follow
 	TypeFollow logutils.MessageDataType = "follow"
+	//TypeOrgAppMembership org app membership
+	TypeOrgAppMembership logutils.MessageDataType = "org app membership"
+	//TypeDeletedOrgAppMembership deleted org app membership
+	TypeDeletedOrgAppMembership logutils.MessageDataType = "deleted org app membership"
+
+	//AccountFieldProfile is the reflect name of the profile field in Account
+	AccountFieldProfile string = "Profile"
+	//AccountFieldIdentifiers is the reflect name of the identifiers field in Account
+	AccountFieldIdentifiers string = "Identifiers"
+
+	//ProfileFieldUnstructuredProperties is the reflect name of the unstructured properties field in Profile
+	ProfileFieldUnstructuredProperties string = "UnstructuredProperties"
+
+	//VisibilityTag is the tag used for setting and evaluating visibility settings on account fields
+	VisibilityTag string = "visibility"
+
+	//VisibilityPublic indicates a field is visible to all other app org members
+	VisibilityPublic string = "public"
+	//VisibilityConnections indicates a field is visible to user-connected app org members
+	VisibilityConnections string = "connections"
+	//VisibilityPrivate indicates a field is visible to the user only
+	VisibilityPrivate string = "private"
 )
 
 // Privacy represents the privacy options for each account
 type Privacy struct {
-	Public bool `json:"public" bson:"public"`
+	Public          *bool                   `json:"public" bson:"public"`
+	FieldVisibility *map[string]interface{} `json:"field_visibility" bson:"field_visibility"`
+}
+
+// GetFieldVisibility determines the privacy setting for the account data at path
+func (p *Privacy) GetFieldVisibility(path string) (string, error) {
+	fieldVisibility := p.FieldVisibility
+	if fieldVisibility == nil {
+		return VisibilityPrivate, nil
+	}
+
+	visibilityEntry := utils.GetMapEntryFromPath(*fieldVisibility, path)
+	if visibilityEntry == nil {
+		return VisibilityPrivate, nil
+	}
+
+	visibility, ok := visibilityEntry.(string)
+	if !ok {
+		return "", errors.ErrorData(logutils.StatusInvalid, "privacy field visibility", &logutils.FieldArgs{"path": path})
+	}
+	return visibility, nil
+}
+
+// IsFieldVisible determines whether the account data at path should be visible to the requesting user
+func (p *Privacy) IsFieldVisible(path string, isConnection bool) (bool, error) {
+	visibility, err := p.GetFieldVisibility(path)
+	if err != nil {
+		return false, errors.WrapErrorAction(logutils.ActionGet, "account field visibility", &logutils.FieldArgs{"path": path}, err)
+	}
+
+	return visibility == VisibilityPublic || (visibility == VisibilityConnections && isConnection), nil
+}
+
+// ValidateFieldVisibility ensures each entry in visibilityMap is either another map or one of the three allowed visbility strings (public, connections, private)
+func (p *Privacy) ValidateFieldVisibility(visibilityMap map[string]interface{}) error {
+	if len(visibilityMap) == 0 {
+		if p.FieldVisibility == nil || len(*p.FieldVisibility) == 0 {
+			return nil
+		}
+		visibilityMap = *p.FieldVisibility
+	}
+
+	for k, v := range visibilityMap {
+		if v == nil {
+			continue
+		}
+		visibility, ok := v.(string)
+		if !ok {
+			insideMap, ok := v.(map[string]interface{})
+			if !ok {
+				return errors.ErrorData(logutils.StatusInvalid, "privacy field visibility", &logutils.FieldArgs{k: v})
+			}
+			err := p.ValidateFieldVisibility(insideMap)
+			if err != nil {
+				return errors.WrapErrorAction(logutils.ActionValidate, "privacy field visibility", &logutils.FieldArgs{"key": k}, err)
+			}
+		} else if visibility != VisibilityPublic && visibility != VisibilityConnections && visibility != VisibilityPrivate {
+			return errors.ErrorData(logutils.StatusInvalid, "privacy field visibility setting", &logutils.FieldArgs{k: visibility})
+		}
+	}
+
+	return nil
+}
+
+// OrgAppMembership represents application organization membership entity
+type OrgAppMembership struct {
+	ID     string
+	AppOrg ApplicationOrganization
+
+	Permissions []Permission
+	Roles       []AccountRole
+	Groups      []AccountGroup
+
+	Secrets     map[string]interface{}
+	Preferences map[string]interface{}
+
+	MostRecentClientVersion *string
+}
+
+// DeletedOrgAppMembership represents a user-deleted OrgAppMembership
+type DeletedOrgAppMembership struct {
+	ID string
+
+	AccountID   string
+	ExternalIDs map[string]string
+
+	AppOrg ApplicationOrganization
+
+	Context map[string]interface{} // some data for other building blocks to consider when deleting some user data for an account app membership
+
+	DateCreated time.Time
 }
 
 // Account represents account entity
@@ -69,26 +185,32 @@ type Privacy struct {
 //	The account is the user himself or herself.
 //	This is what the person provides to the system so that to use it.
 //
-//	Every account is for an organization within an application
+//	Every account is for an organization
 type Account struct {
 	ID string //this is ID for the account
 
-	AppOrg ApplicationOrganization
+	OrgID              string
+	OrgAppsMemberships []OrgAppMembership
 
-	Permissions []Permission
-	Roles       []AccountRole
-	Groups      []AccountGroup
-	Scopes      []string
+	/// Current App Org Membership // we keep this for easier migration to tenant accounts
+	AppOrg                  ApplicationOrganization
+	Permissions             []Permission
+	Roles                   []AccountRole
+	Groups                  []AccountGroup
+	Secrets                 map[string]interface{}
+	Preferences             map[string]interface{}
+	MostRecentClientVersion *string
+	/// End Current App Org Membership
 
-	Identifiers []AccountIdentifier
+	Scopes []string
+
+	Identifiers []AccountIdentifier `visibility:"identifiers"`
 	AuthTypes   []AccountAuthType
 
 	MFATypes []MFAType
 
-	Preferences   map[string]interface{}
-	Secrets       map[string]interface{}
 	SystemConfigs map[string]interface{}
-	Profile       Profile //one account has one profile, one profile can be shared between many accounts
+	Profile       Profile `visibility:"profile"` //one account has one profile
 	Privacy       Privacy
 
 	Devices []Device
@@ -99,9 +221,64 @@ type Account struct {
 	DateCreated time.Time
 	DateUpdated *time.Time
 
-	LastLoginDate           *time.Time
-	LastAccessTokenDate     *time.Time
-	MostRecentClientVersion *string
+	LastLoginDate       *time.Time
+	LastAccessTokenDate *time.Time
+}
+
+// UserData represents the current user data
+type UserData struct {
+	Account      *Account       `json:"account"`
+	LoginSession []LoginSession `json:"login_sessions"`
+}
+
+// HasAppMembership checks if there is app membership
+func (a Account) HasAppMembership(appOrgID string) bool {
+	if len(a.OrgAppsMemberships) == 0 {
+		return false
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.ID == appOrgID {
+			return true
+		}
+	}
+	return false
+}
+
+// HasApp checks if there is app
+func (a Account) HasApp(appID string) bool {
+	if len(a.OrgAppsMemberships) == 0 {
+		return false
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.Application.ID == appID {
+			return true
+		}
+	}
+	return false
+}
+
+// GetMembershipByAppOrgID gets a membership by appOrgID
+func (a Account) GetMembershipByAppOrgID(appOrgID string) OrgAppMembership {
+	if len(a.OrgAppsMemberships) == 0 {
+		return OrgAppMembership{}
+	}
+	for _, oam := range a.OrgAppsMemberships {
+		if oam.AppOrg.ID == appOrgID {
+			return oam
+		}
+	}
+	return OrgAppMembership{}
+}
+
+// SetCurrentMembership sets current membership
+func (a *Account) SetCurrentMembership(current OrgAppMembership) {
+	a.AppOrg = current.AppOrg
+	a.Permissions = current.Permissions
+	a.Roles = current.Roles
+	a.Groups = current.Groups
+	a.Preferences = current.Preferences
+	a.Secrets = current.Secrets
+	a.MostRecentClientVersion = current.MostRecentClientVersion
 }
 
 // GetAccountAuthTypeByID finds account auth type by id
@@ -186,10 +363,24 @@ func (a Account) GetExternalAccountIdentifiers() []AccountIdentifier {
 	return identifiers
 }
 
+// GetExternalIDsMap returns a map of external ids for this account
+func (a Account) GetExternalIDsMap() map[string]string {
+	externalIDs := make(map[string]string)
+	for _, id := range a.Identifiers {
+		if id.AccountAuthTypeID != nil {
+			externalIDs[id.Code] = id.Identifier
+		}
+	}
+	return externalIDs
+}
+
 // SortAccountIdentifiers sorts account identifiers by matching the given identifier
 func (a Account) SortAccountIdentifiers(identifier string) {
-	sort.Slice(a.Identifiers, func(i, _ int) bool {
-		return a.Identifiers[i].Identifier == identifier
+	slices.SortFunc(a.Identifiers, func(i, _ AccountIdentifier) int {
+		if i.Identifier == identifier {
+			return -1
+		}
+		return 0
 	})
 }
 
@@ -362,6 +553,89 @@ func (a Account) GetAppOrg() ApplicationOrganization {
 	return a.AppOrg
 }
 
+// GetPublicAccount gets a limited version of the account according to the visibility settings in Privacy
+func (a *Account) GetPublicAccount(isConnection bool) (*PublicAccount, error) {
+	publicProfile, err := a.GetPublicProfile(isConnection)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionGet, "public profile", nil, err)
+	}
+	publicIdentifiers, err := a.GetPublicIdentifiers(isConnection)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionGet, "public identifiers", nil, err)
+	}
+	return &PublicAccount{ID: a.ID, Verified: a.Verified, IsConnection: isConnection, Profile: *publicProfile, Identifiers: publicIdentifiers}, nil
+}
+
+// GetPublicProfile gets a limited version of the account profile according to the visibility settings in Privacy
+func (a *Account) GetPublicProfile(isConnection bool) (*PublicProfile, error) {
+	if a == nil {
+		return nil, errors.ErrorData(logutils.StatusMissing, TypeAccount, nil)
+	}
+
+	publicProfile := PublicProfile{}
+	accountType := reflect.TypeOf(a).Elem()
+	profileField, _ := accountType.FieldByName(AccountFieldProfile)
+	profileValue := reflect.ValueOf(&a.Profile).Elem()
+	for i := range profileField.Type.NumField() {
+		field := profileField.Type.Field(i)
+		fieldValue := profileValue.Field(i)
+		fieldTag := field.Tag.Get(VisibilityTag)
+		visibilityPath := fmt.Sprintf("%s.%s", profileField.Tag.Get(VisibilityTag), fieldTag)
+		if field.Name == ProfileFieldUnstructuredProperties {
+			for k, v := range a.Profile.UnstructuredProperties {
+				visible, err := a.Privacy.IsFieldVisible(fmt.Sprintf("%s.%s", visibilityPath, k), isConnection)
+				if err != nil {
+					return nil, errors.WrapErrorAction(logutils.ActionGet, "visibility", logutils.StringArgs(fmt.Sprintf("%s.%s", fieldTag, k)), err)
+				}
+				if visible {
+					if publicProfile.UnstructuredProperties == nil {
+						publicProfile.UnstructuredProperties = make(map[string]interface{})
+					}
+					publicProfile.UnstructuredProperties[k] = v
+				}
+			}
+		} else {
+			publicProfileField := reflect.ValueOf(&publicProfile).Elem().FieldByName(field.Name) // get matching public profile field
+			if !publicProfileField.IsValid() {
+				continue // if there is no matching public profile field, go to next
+			}
+			visible, err := a.Privacy.IsFieldVisible(visibilityPath, isConnection)
+			if err != nil {
+				return nil, errors.WrapErrorAction(logutils.ActionGet, "visibility", logutils.StringArgs(fieldTag), err)
+			}
+			if visible && fieldValue.CanAddr() && publicProfileField.CanSet() {
+				publicProfileField.Set(fieldValue.Addr())
+			}
+		}
+	}
+
+	return &publicProfile, nil
+}
+
+// GetPublicIdentifiers gets a limited version of the account identifiers according to the visibility settings in Privacy
+func (a *Account) GetPublicIdentifiers(isConnection bool) ([]PublicAccountIdentifier, error) {
+	if a == nil {
+		return nil, errors.ErrorData(logutils.StatusMissing, TypeAccount, nil)
+	}
+
+	accountType := reflect.TypeOf(a).Elem()
+	identifiersField, _ := accountType.FieldByName(AccountFieldIdentifiers)
+	identifiersTag := identifiersField.Tag.Get(VisibilityTag)
+	publicIdentifiers := make([]PublicAccountIdentifier, 0)
+	for _, identifier := range a.Identifiers {
+		path := fmt.Sprintf("%s.%s", identifiersTag, identifier.ID)
+		visible, err := a.Privacy.IsFieldVisible(path, isConnection)
+		if err != nil {
+			return nil, errors.WrapErrorAction(logutils.ActionGet, "visibility", logutils.StringArgs(path), err)
+		}
+		if visible {
+			publicIdentifiers = append(publicIdentifiers, PublicAccountIdentifier{Code: identifier.Code, Identifier: identifier.Identifier})
+		}
+	}
+
+	return publicIdentifiers, nil
+}
+
 // AccountRole represents a role assigned to an account
 type AccountRole struct {
 	Role     AppOrgRole
@@ -526,23 +800,29 @@ type MFAType struct {
 //	 What the person shares with the system/other users/
 //		The person should be able to use the system even all profile fields are empty/it is just an information for the user/
 type Profile struct {
-	ID string
+	ID string `visibility:"id"`
 
-	PhotoURL  string
-	FirstName string
-	LastName  string
-	BirthYear int16
-	Address   string
-	ZipCode   string
-	State     string
-	Country   string
+	PhotoURL         string `visibility:"photo_url"`
+	PronunciationURL string `visibility:"pronunciation_url"`
+	Pronouns         string `visibility:"pronouns"`
+	FirstName        string `visibility:"first_name"`
+	LastName         string `visibility:"last_name"`
+	Email            string `visibility:"email"`
+	Phone            string `visibility:"phone"`
+	BirthYear        int16  `visibility:"birth_year"`
+	Address          string `visibility:"address"`
+	Address2         string `visibility:"address2"`
+	POBox            string `visibility:"po_box"`
+	City             string `visibility:"city"`
+	ZipCode          string `visibility:"zip_code"`
+	State            string `visibility:"state"`
+	Country          string `visibility:"country"`
+	Website          string `visibility:"website"`
 
-	Accounts []Account //the users can share profiles between their applications accounts for some applications
+	UnstructuredProperties map[string]interface{} `visibility:"unstructured_properties"`
 
 	DateCreated time.Time
 	DateUpdated *time.Time
-
-	UnstructuredProperties map[string]interface{}
 }
 
 // GetFullName returns the user's full name
@@ -565,6 +845,15 @@ func (p Profile) Merge(src Profile) Profile {
 	}
 	if src.Address != "" {
 		p.Address = src.Address
+	}
+	if src.Address2 != "" {
+		p.Address2 = src.Address2
+	}
+	if src.POBox != "" {
+		p.POBox = src.POBox
+	}
+	if src.City != "" {
+		p.City = src.City
 	}
 	if src.ZipCode != "" {
 		p.ZipCode = src.ZipCode
@@ -595,7 +884,7 @@ func (p Profile) Merge(src Profile) Profile {
 }
 
 // ProfileFromMap parses a map and converts it into a Profile struct
-func ProfileFromMap(profileMap map[string]interface{}) Profile {
+func ProfileFromMap(profileMap map[string]interface{}, profileFields map[string]string) Profile {
 	profile := Profile{UnstructuredProperties: make(map[string]interface{})}
 	for key, val := range profileMap {
 		if key == "first_name" {
@@ -614,6 +903,18 @@ func ProfileFromMap(profileMap map[string]interface{}) Profile {
 			if typeVal, ok := val.(string); ok {
 				profile.Address = typeVal
 			}
+		} else if key == "address2" {
+			if typeVal, ok := val.(string); ok {
+				profile.Address2 = typeVal
+			}
+		} else if key == "po_box" {
+			if typeVal, ok := val.(string); ok {
+				profile.POBox = typeVal
+			}
+		} else if key == "city" {
+			if typeVal, ok := val.(string); ok {
+				profile.City = typeVal
+			}
 		} else if key == "zip_code" {
 			if typeVal, ok := val.(string); ok {
 				profile.ZipCode = typeVal
@@ -630,11 +931,36 @@ func ProfileFromMap(profileMap map[string]interface{}) Profile {
 			if typeVal, ok := val.(string); ok {
 				profile.PhotoURL = typeVal
 			}
-		} else {
-			profile.UnstructuredProperties[key] = val
+		}
+	}
+
+	for path, profileKey := range profileFields {
+		if value := utils.GetMapEntryFromPath(profileMap, path); value != nil {
+			profile.UnstructuredProperties[profileKey] = value
 		}
 	}
 	return profile
+}
+
+// PublicProfile defines model for PublicProfile.
+type PublicProfile struct {
+	Address                *string
+	Address2               *string
+	POBox                  *string
+	City                   *string
+	BirthYear              *int16
+	Country                *string
+	Email                  *string
+	FirstName              *string
+	LastName               *string
+	Phone                  *string
+	PhotoURL               *string
+	PronunciationURL       *string
+	Pronouns               *string
+	State                  *string
+	UnstructuredProperties map[string]interface{}
+	Website                *string
+	ZipCode                *string
 }
 
 // Device represents user devices entity.
@@ -665,6 +991,7 @@ type ExternalSystemUser struct {
 	Email      string   `json:"email" bson:"email"`
 	Roles      []string `json:"roles" bson:"roles"`
 	Groups     []string `json:"groups" bson:"groups"`
+	Ferpa      bool     `json:"ferpa" bson:"ferpa"`
 
 	//here are the system specific data for the user - uiucedu_uin etc
 	SystemSpecific map[string]interface{} `json:"system_specific" bson:"system_specific"`
@@ -688,6 +1015,9 @@ func (esu ExternalSystemUser) Equals(other ExternalSystemUser) bool {
 		return false
 	}
 	if esu.Email != other.Email {
+		return false
+	}
+	if esu.Ferpa != other.Ferpa {
 		return false
 	}
 	if !utils.DeepEqual(esu.Roles, other.Roles) {
@@ -718,12 +1048,19 @@ type AccountRelations struct {
 
 // PublicAccount shows public account information
 type PublicAccount struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	Verified    bool   `json:"verified"`
-	IsFollowing bool   `json:"is_following"`
+	ID           string
+	Verified     bool
+	IsFollowing  bool // remove?
+	IsConnection bool // whether a user requesting this public account info is connected to the account's user
+
+	Profile     PublicProfile
+	Identifiers []PublicAccountIdentifier
+}
+
+// PublicAccountIdentifier represents an account identifier made publicly-known by a user
+type PublicAccountIdentifier struct {
+	Code       string
+	Identifier string
 }
 
 // Follow shows the relationship between user and follower
@@ -734,4 +1071,18 @@ type Follow struct {
 	FollowerID  string    `json:"follower_id" bson:"follower_id"`
 	FollowingID string    `json:"following_id" bson:"following_id"`
 	DateCreated time.Time `json:"date_created" bson:"date_created"`
+}
+
+// AccountData shows AccountData information
+type AccountData struct {
+	AuthType    string    `json:"auth_type"`
+	GroupIds    *[]string `json:"group_ids,omitempty"`
+	Identifier  string    `json:"identifier"`
+	Permissions *[]string `json:"permissions,omitempty"`
+	Privacy     *Privacy  `json:"privacy"`
+	Profile     *Profile  `json:"profile"`
+	RoleIds     *[]string `json:"role_ids,omitempty"`
+	Scopes      *[]string `json:"scopes,omitempty"`
+	AppID       string    `json:"app_id"`
+	OrgID       string    `json:"org_id"`
 }

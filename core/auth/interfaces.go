@@ -20,11 +20,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/rokwire/core-auth-library-go/v3/authorization"
-	"github.com/rokwire/core-auth-library-go/v3/sigauth"
-	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
-	"github.com/rokwire/logging-library-go/v2/logs"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/sigauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
 )
 
 // identifierType is the interface for auth identifiers that are not external to the system
@@ -299,6 +299,9 @@ type APIs interface {
 	CreateAdminAccount(authenticationType string, appID string, orgID string, identifierJSON string, profile model.Profile, privacy model.Privacy, permissions []string,
 		roleIDs []string, groupIDs []string, scopes []string, creatorPermissions []string, clientVersion *string, l *logs.Log) (*model.Account, map[string]interface{}, error)
 
+	//CreateAccounts create accounts in the system
+	CreateAccounts(partialAccount []model.AccountData, creatorPermissions []string, clientVersion *string, l *logs.Log) ([]model.Account, []map[string]interface{}, error)
+
 	//UpdateAdminAccount updates an existing user's account with new permissions, roles, and groups
 	UpdateAdminAccount(authenticationType string, appID string, orgID string, identifierJSON string, permissions []string, roleIDs []string,
 		groupIDs []string, scopes []string, updaterPermissions []string, l *logs.Log) (*model.Account, map[string]interface{}, error)
@@ -428,6 +431,8 @@ type APIs interface {
 	//LinkAccountAuthType links new credentials to an existing account.
 	//The authentication method must be one of the supported for the application.
 	//	Input:
+	//		orgID (string): Org id
+	//		appID (string): App id
 	//		accountID (string): ID of the account to link the creds to
 	//		authenticationType (string): Name of the authentication method for provided creds (eg. "password", "webauthn", "illinois_oidc")
 	//		appTypeIdentifier (string): Identifier of the app type/client that the user is logging in from
@@ -437,7 +442,7 @@ type APIs interface {
 	//	Returns:
 	//		message (*string): response message
 	//		account (*model.Account): account data after the operation
-	LinkAccountAuthType(accountID string, authenticationType string, appTypeIdentifier string, creds string, params string, l *logs.Log) (*string, *model.Account, error)
+	LinkAccountAuthType(orgID string, appID string, accountID string, authenticationType string, appTypeIdentifier string, creds string, params string, l *logs.Log) (*string, *model.Account, error)
 
 	//UnlinkAccountAuthType unlinks credentials from an existing account.
 	//The authentication method must be one of the supported for the application.
@@ -455,11 +460,16 @@ type APIs interface {
 
 	UnlinkAccountIdentifier(accountID string, accountIdentifierID string, admin bool, l *logs.Log) (*model.Account, error)
 
+	//AddAccountUsername attempts to add the given username to the given account as a new account identifier
+	//	Returns:
+	//		added (bool): whether the username identifier was added to the account
+	AddAccountUsername(context storage.TransactionContext, account *model.Account, username string) (bool, error)
+
 	//InitializeSystemAccount initializes the first system account
 	InitializeSystemAccount(context storage.TransactionContext, authType model.AuthType, appOrg model.ApplicationOrganization, allSystemPermission string, email string, password string, clientVersion string, l *logs.Log) (string, error)
 
 	//GrantAccountPermissions grants new permissions to an account after validating the assigner has required permissions
-	GrantAccountPermissions(context storage.TransactionContext, account *model.Account, permissionNames []string, assignerPermissions []string) error
+	//GrantAccountPermissions(context storage.TransactionContext, account *model.Account, permissionNames []string, assignerPermissions []string) error
 
 	//CheckPermissions loads permissions by names from storage and checks that they are assignable and valid for the given appOrgs or revocable
 	CheckPermissions(context storage.TransactionContext, appOrgs []model.ApplicationOrganization, permissionNames []string, assignerPermissions []string, revoke bool) ([]model.Permission, error)
@@ -476,8 +486,8 @@ type APIs interface {
 	//CheckGroups loads appOrg groups by IDs from storage and checks that they are assignable or revocable
 	CheckGroups(context storage.TransactionContext, appOrg *model.ApplicationOrganization, groupIDs []string, assignerPermissions []string, revoke bool) ([]model.AppOrgGroup, error)
 
-	//DeleteAccount deletes an account for the given id
-	DeleteAccount(id string) error
+	//DeleteAccount deletes the given app memberships for the given account id
+	DeleteAccount(id string, apps []string, appsWithContext []model.DeletedOrgAppMembership) error
 
 	//GetAdminToken returns an admin token for the specified application and organization
 	GetAdminToken(claims tokenauth.Claims, appID string, orgID string, l *logs.Log) (string, error)
@@ -556,17 +566,18 @@ type Storage interface {
 	DeleteLoginState(context storage.TransactionContext, id string) error
 
 	//Accounts
-	FindAccount(context storage.TransactionContext, appOrgID string, code string, identifier string) (*model.Account, error)
-	FindAccountByID(context storage.TransactionContext, id string) (*model.Account, error)
+	FindAccount(context storage.TransactionContext, code string, identifier string, orgID *string, currentAppOrgID *string) (*model.Account, error)
+	FindAccountByID(context storage.TransactionContext, cOrgID *string, cAppID *string, id string) (*model.Account, error)
 	FindAccountsByUsername(context storage.TransactionContext, appOrg *model.ApplicationOrganization, username string) ([]model.Account, error)
 	InsertAccount(context storage.TransactionContext, account model.Account) (*model.Account, error)
 	SaveAccount(context storage.TransactionContext, account *model.Account) error
 	DeleteAccount(context storage.TransactionContext, id string) error
 	UpdateAccountUsageInfo(context storage.TransactionContext, accountID string, updateLoginTime bool, updateAccessTokenTime bool, clientVersion *string) error
+	DeleteOrgAppsMemberships(context storage.TransactionContext, accountID string, membershipIDs []string) error
 
-	//Profiles
-	UpdateAccountProfile(context storage.TransactionContext, profile model.Profile) error
-	FindAccountProfiles(appID string, accountIdentifier string) ([]model.Profile, error)
+	//DeletedOrgAppMemberships
+	InsertDeletedOrgAppMemberships(context storage.TransactionContext, memberships []model.DeletedOrgAppMembership) error
+	DeleteDeletedOrgAppsMemberships(cutoff time.Time) error
 
 	//ServiceAccounts
 	FindServiceAccount(context storage.TransactionContext, accountID string, appID string, orgID string) (*model.ServiceAccount, error)
@@ -581,14 +592,14 @@ type Storage interface {
 	DeleteServiceAccountCredential(accountID string, credID string) error
 
 	//AccountAuthTypes
-	FindAccountByAuthTypeID(context storage.TransactionContext, id string) (*model.Account, error)
-	FindAccountByCredentialID(context storage.TransactionContext, id string) (*model.Account, error)
+	FindAccountByAuthTypeID(context storage.TransactionContext, id string, currentAppOrgID *string) (*model.Account, error)
+	FindAccountByCredentialID(context storage.TransactionContext, id string, currentAppOrgID *string) (*model.Account, error)
 	InsertAccountAuthType(context storage.TransactionContext, item model.AccountAuthType) error
 	UpdateAccountAuthType(context storage.TransactionContext, item model.AccountAuthType) error
 	DeleteAccountAuthType(context storage.TransactionContext, item model.AccountAuthType) error
 
 	//AccountIdentifiers
-	FindAccountByIdentifierID(context storage.TransactionContext, id string) (*model.Account, error)
+	FindAccountByIdentifierID(context storage.TransactionContext, id string, currentAppOrgID *string) (*model.Account, error)
 	InsertAccountIdentifier(context storage.TransactionContext, item model.AccountIdentifier) error
 	UpdateAccountIdentifier(context storage.TransactionContext, item model.AccountIdentifier) error
 	UpdateAccountIdentifiers(context storage.TransactionContext, accountID string, items []model.AccountIdentifier) error
@@ -660,13 +671,13 @@ type Storage interface {
 	//Permissions
 	FindPermissions(context storage.TransactionContext, ids []string) ([]model.Permission, error)
 	FindPermissionsByName(context storage.TransactionContext, names []string) ([]model.Permission, error)
-	InsertAccountPermissions(context storage.TransactionContext, accountID string, permissions []model.Permission) error
-	UpdateAccountPermissions(context storage.TransactionContext, accountID string, permissions []model.Permission) error
+	InsertAccountPermissions(context storage.TransactionContext, accountID string, appOrgID string, permissions []model.Permission) error
+	UpdateAccountPermissions(context storage.TransactionContext, accountID string, appOrgID string, permissions []model.Permission) error
 
 	//ApplicationRoles
 	FindAppOrgRolesByIDs(context storage.TransactionContext, ids []string, appOrgID string) ([]model.AppOrgRole, error)
 	//AccountRoles
-	UpdateAccountRoles(context storage.TransactionContext, accountID string, roles []model.AccountRole) error
+	UpdateAccountRoles(context storage.TransactionContext, accountID string, appOrgID string, roles []model.AccountRole) error
 	InsertAccountRoles(context storage.TransactionContext, accountID string, appOrgID string, roles []model.AccountRole) error
 
 	UpdateAccountScopes(context storage.TransactionContext, accountID string, scopes []string) error
@@ -674,7 +685,7 @@ type Storage interface {
 	//ApplicationGroups
 	FindAppOrgGroupsByIDs(context storage.TransactionContext, ids []string, appOrgID string) ([]model.AppOrgGroup, error)
 	//AccountGroups
-	UpdateAccountGroups(context storage.TransactionContext, accountID string, groups []model.AccountGroup) error
+	UpdateAccountGroups(context storage.TransactionContext, accountID string, appOrgID string, groups []model.AccountGroup) error
 	InsertAccountGroups(context storage.TransactionContext, accountID string, appOrgID string, groups []model.AccountGroup) error
 }
 
@@ -685,7 +696,7 @@ type ProfileBuildingBlock interface {
 
 // IdentityBuildingBlock is used by auth to communicate with the identity building block.
 type IdentityBuildingBlock interface {
-	GetUserProfile(baseURL string, externalUser model.ExternalSystemUser, externalAccessToken string, l *logs.Log) (*model.Profile, error)
+	GetUserProfile(baseURL string, externalUser model.ExternalSystemUser, externalAccessToken string, profileFields map[string]string, l *logs.Log) (*model.Profile, error)
 }
 
 // Emailer is used by core to send emails

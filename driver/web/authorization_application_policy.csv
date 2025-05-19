@@ -48,6 +48,7 @@ p, all_accounts, /core/admin/application/roles, (GET),
 p, all_accounts, /core/admin/application/groups, (GET),
 p, get_accounts, /core/admin/application/accounts, (GET), Get accounts
 p, create_accounts, /core/admin/application/accounts, (POST), Create new account
+p, create_accounts, /core/admin/v2/application/accounts, (POST), Create new accounts
 p, create_accounts, /core/admin/application/permissions, (GET),
 p, create_accounts, /core/admin/application/roles, (GET),
 p, create_accounts, /core/admin/application/groups, (GET),
@@ -58,6 +59,11 @@ p, update_accounts, /core/admin/application/groups/*/accounts, (PUT)|(DELETE),
 p, update_accounts, /core/admin/application/permissions, (GET),
 p, update_accounts, /core/admin/application/roles, (GET),
 p, update_accounts, /core/admin/application/groups, (GET),
+
+p, all_accounts, /core/services/accounts, (GET)|(POST)|(PUT)|(DELETE),
+p, get_accounts, /core/services/accounts, (GET),
+p, create_accounts, /core/services/accounts, (POST),
+p, update_accounts, /core/services/accounts, (GET)|(PUT),
 
 p, get_filter-accounts, /core/admin/application/filter/accounts, (POST), Get filter accounts
 p, get_filter-accounts-count, /core/admin/application/filter/accounts/count, (POST), Get filter accounts count

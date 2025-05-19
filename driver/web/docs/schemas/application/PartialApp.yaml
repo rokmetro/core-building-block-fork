@@ -1,0 +1,10 @@
+required:
+  - id
+  - name
+type: object
+properties:
+  id:
+    readOnly: true
+    type: string
+  name:
+    type: string

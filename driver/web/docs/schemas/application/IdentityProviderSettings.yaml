@@ -27,6 +27,8 @@ properties:
     type: string
   email_field:
     type: string
+  ferpa_field:
+    type: string
   roles_field:
     type: string
   groups_field:
@@ -47,6 +49,15 @@ properties:
       type: string
     nullable: true
   always_sync_profile:
-    type: boolean 
+    type: boolean
   identity_bb_base_url:
     type: string
+  identity_bb_profile_fields:
+    type: object
+    additionalProperties:
+      type: string
+    nullable: true
+  admin_app_access_roles:
+    type: array
+    items:
+      type: string

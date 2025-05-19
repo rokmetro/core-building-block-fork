@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -226,6 +227,7 @@ func (sa *Adapter) setCachedAuthTypes(authProviders []model.AuthType) {
 	for _, authType := range authProviders {
 		err := validate.Struct(authType)
 		if err == nil {
+			//we will get it by id and code as well
 			sa.setCachedAuthType(authType)
 		} else {
 			sa.logger.Errorf("failed to validate and cache auth type with code %s: %s", authType.Code, err.Error())
@@ -606,6 +608,27 @@ func (sa *Adapter) getCachedApplicationOrganizationByKey(key string) (*model.App
 	return nil, nil
 }
 
+func (sa *Adapter) getCachedApplicationOrganizationByKeys(keys []string) ([]model.ApplicationOrganization, error) {
+	sa.applicationsOrganizationsLock.RLock()
+	defer sa.applicationsOrganizationsLock.RUnlock()
+
+	var result []model.ApplicationOrganization
+	for _, key := range keys {
+		errArgs := &logutils.FieldArgs{"key": key}
+
+		item, exists := sa.cachedApplicationsOrganizations.Load(key)
+		if exists {
+			appOrg, ok := item.(model.ApplicationOrganization)
+			if !ok {
+				return nil, errors.ErrorAction(logutils.ActionCast, model.TypeApplicationOrganization, errArgs)
+			}
+			result = append(result, appOrg)
+		}
+	}
+
+	return result, nil
+}
+
 func (sa *Adapter) getCachedApplicationOrganizations() ([]model.ApplicationOrganization, error) {
 	sa.applicationsOrganizationsLock.RLock()
 	defer sa.applicationsOrganizationsLock.RUnlock()
@@ -637,6 +660,75 @@ func (sa *Adapter) getCachedApplicationOrganizations() ([]model.ApplicationOrgan
 	return appOrgList, err
 }
 
+func (sa *Adapter) getCachedApplicationOrganizationsByKeySubstring(substring string) ([]model.ApplicationOrganization, error) {
+	sa.applicationsOrganizationsLock.RLock()
+	defer sa.applicationsOrganizationsLock.RUnlock()
+
+	var err error
+	appOrgList := make([]model.ApplicationOrganization, 0)
+	sa.cachedApplicationsOrganizations.Range(func(key, item interface{}) bool {
+		errArgs := &logutils.FieldArgs{"key": key}
+
+		keyStr, ok := key.(string)
+		if !ok {
+			err = errors.ErrorData(logutils.StatusInvalid, "key", errArgs)
+			return false
+		}
+
+		if item == nil {
+			err = errors.ErrorData(logutils.StatusInvalid, model.TypeApplicationOrganization, errArgs)
+			return false
+		}
+
+		appOrg, ok := item.(model.ApplicationOrganization)
+		if !ok {
+			err = errors.ErrorAction(logutils.ActionCast, model.TypeApplicationOrganization, errArgs)
+			return false
+		}
+
+		if strings.Contains(keyStr, substring) {
+			appOrgList = append(appOrgList, appOrg)
+		}
+
+		return true
+	})
+
+	return appOrgList, err
+}
+
+func (sa *Adapter) getAppOrgIDsByAppOrgPair(appID string, orgID string) ([]string, error) {
+	if appID != rokwireutils.AllApps && orgID != rokwireutils.AllOrgs {
+		appOrg, err := sa.getCachedApplicationOrganization(appID, orgID)
+		if err != nil {
+			return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID}, err)
+		}
+		if appOrg == nil {
+			return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_id": appID, "org_id": orgID})
+		}
+
+		return []string{appOrg.ID}, nil
+	}
+
+	key := strings.ReplaceAll(fmt.Sprintf("%s_%s", appID, orgID), rokwireutils.AllApps, "")
+	if key != "_" {
+		appOrgs, err := sa.getCachedApplicationOrganizationsByKeySubstring(key)
+		if err != nil {
+			return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"key": key}, err)
+		}
+		if len(appOrgs) == 0 {
+			return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"key": key})
+		}
+
+		ids := make([]string, len(appOrgs))
+		for i, appOrg := range appOrgs {
+			ids[i] = appOrg.ID
+		}
+		return ids, nil
+	}
+
+	return nil, nil // nil slice for appID=rokwireutils.AllApps, orgID=rokwireutils.AllOrgs
+}
+
 // APP CONFIGS
 
 // loadAppConfigs loads all application configs
@@ -657,7 +749,10 @@ func (sa *Adapter) loadAppConfigs() ([]model.ApplicationConfig, error) {
 		if item.AppOrgID != nil {
 			appOrg, err = sa.getCachedApplicationOrganizationByKey(*item.AppOrgID)
 			if err != nil {
-				return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, nil, err)
+				return nil, errors.WrapErrorAction(logutils.ActionLoadCache, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_org_id": *item.AppOrgID}, err)
+			}
+			if appOrg == nil {
+				return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationOrganization, &logutils.FieldArgs{"app_org_id": *item.AppOrgID})
 			}
 		}
 
@@ -787,6 +882,99 @@ func (sa *Adapter) getCachedApplicationConfigByID(id string) (*model.Application
 	}
 
 	return nil, errors.ErrorData(logutils.StatusMissing, model.TypeApplicationConfig, errArgs)
+}
+
+// ASSETS
+
+// loadAppAsssets gets the app assets
+func (sa *Adapter) loadAppAssets() ([]model.AppAsset, error) {
+	//no transactions for get operations..
+
+	//1. find the assets
+	filter := bson.D{}
+	var results []model.AppAsset
+	err := sa.db.applicationAssets.Find(filter, &results, nil)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionLoad, model.TypeAppAsset, nil, err)
+	}
+	return results, nil
+}
+
+// cacheApplicationAssets caches the app assets from the DB
+func (sa *Adapter) cacheApplicationAssets() error {
+	sa.logger.Info("cacheApplicationAssets...")
+
+	assets, err := sa.loadAppAssets()
+	if err != nil {
+		return errors.WrapErrorAction(logutils.ActionFind, model.TypeAppAsset, nil, err)
+	}
+
+	sa.setCachedApplicationAssets(&assets)
+
+	return nil
+}
+
+func (sa *Adapter) setCachedApplicationAssets(assets *[]model.AppAsset) {
+	sa.applicationAssetsLock.Lock()
+	defer sa.applicationAssetsLock.Unlock()
+
+	sa.cachedApplicationAssets = &syncmap.Map{}
+	validate := validator.New()
+
+	for _, asset := range *assets {
+		key := fmt.Sprintf("%s_%s_%s", asset.OrgID, asset.AppID, asset.Name)
+		err := validate.Struct(asset)
+		if err == nil {
+			sa.cachedApplicationAssets.Store(key, asset)
+		} else {
+			sa.logger.Errorf("failed to validate and cache application asset %s: %s", key, err.Error())
+		}
+	}
+}
+
+func (sa *Adapter) getCachedApplicationAsset(orgID string, appID string, name string) (*model.AppAsset, error) {
+	sa.applicationAssetsLock.RLock()
+	defer sa.applicationAssetsLock.RUnlock()
+
+	errArgs := &logutils.FieldArgs{"org_id": orgID, "app_id": appID, "name": name}
+
+	key := fmt.Sprintf("%s_%s_%s", orgID, appID, name)
+	item, _ := sa.cachedApplicationAssets.Load(key)
+	if item != nil {
+		asset, ok := item.(model.AppAsset)
+		if !ok {
+			return nil, errors.ErrorAction(logutils.ActionCast, model.TypeAppAsset, errArgs)
+		}
+		return &asset, nil
+	}
+	return nil, nil
+}
+
+func (sa *Adapter) getCachedApplicationAssets(orgID string, appID string) ([]model.AppAsset, error) {
+	sa.applicationAssetsLock.RLock()
+	defer sa.applicationAssetsLock.RUnlock()
+
+	var err error
+	assets := make([]model.AppAsset, 0)
+	sa.cachedApplicationAssets.Range(func(key, item interface{}) bool {
+		errArgs := &logutils.FieldArgs{"org_id": orgID, "app_id": appID}
+		if item == nil {
+			err = errors.ErrorData(logutils.StatusInvalid, model.TypeAppAsset, errArgs)
+			return false
+		}
+
+		asset, ok := item.(model.AppAsset)
+		if !ok {
+			err = errors.ErrorAction(logutils.ActionCast, model.TypeAppAsset, errArgs)
+			return false
+		}
+		if asset.AppID == appID && asset.OrgID == orgID {
+			assets = append(assets, asset)
+		}
+		return true
+	})
+
+	return assets, err
 }
 
 // CONFIGS

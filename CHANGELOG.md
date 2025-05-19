@@ -7,18 +7,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Added
+- Allow user info endpoint to be avoided during OIDC login [#40](https://github.com/rokmetro/core-building-block-fork/issues/40)
+- Handle client asset files [#436](https://github.com/rokwire/core-building-block/issues/436)
 - WebAuthn authentication [#659](https://github.com/rokwire/core-building-block/issues/659)
 - Searching follows looks for substring matches [#670](https://github.com/rokwire/core-building-block/issues/670)
 - Support following accounts [#667](https://github.com/rokwire/core-building-block/issues/667)
 - Device ID not nullable [#672](https://github.com/rokwire/core-building-block/issues/672)
 - Account secrets [#677](https://github.com/rokwire/core-building-block/issues/677)
 - Set up token duration policies for app/orgs [#472](https://github.com/rokwire/core-building-block/issues/472)
+- Expose account date created and updated through API
 ### Changed
 - Decouple authentication and verification mechanisms [#665](https://github.com/rokwire/core-building-block/issues/665)
 - Refactor account auth types [#674](https://github.com/rokwire/core-building-block/issues/674)
+- Improve request context logging
+- Upgrade dependencies
+- Separate auth claims checks from permissions checks
 ### Fixed
 - Fix email and code sign up
+- Allow update username API to create username
+- Fix email with code login and missing membership data [#38](https://github.com/rokmetro/core-building-block-fork/issues/38)
+- Make email identifiers case insensitive [#43](https://github.com/rokmetro/core-building-block-fork/issues/43)
 - Fix passkey linking issues
+  
+### Changed
+- Replace auth library and logging library with Building Block SDK [#765](https://github.com/rokwire/core-building-block/issues/765)
+
+## [1.51.0] - 2025-02-005
+### Added
+- Support public accounts reverse pagination and total count [#766](https://github.com/rokwire/core-building-block/issues/766)
+
+## [1.50.0] - 2025-24-04
+### Added
+- Additional profile fields needed (added profile address fields) [#762](https://github.com/rokwire/core-building-block/issues/762)
+
+### Changed
+- Additional profile fields needed [#762](https://github.com/rokwire/core-building-block/issues/762)
+
+## [1.49.0] - 2025-16-04
+### Changed
+- Support Google Trust Services as CA [#767](https://github.com/rokwire/core-building-block/issues/767)
+
+## [1.48.2] - 2025-20-02
+### Fixed
+- Disable default privacy setting [#759](https://github.com/rokwire/core-building-block/issues/759)
+
+## [1.48.1] - 2025-19-02
+### Fixed
+- Fix privacy format [#755](https://github.com/rokwire/core-building-block/issues/755)
+
+## [1.48.0] - 2025-18-02
+### Changed
+- Default privacy for new accounts [#752](https://github.com/rokwire/core-building-block/issues/752)
+
+## [1.47.0] - 2025-30-01
+### Added 
+- Consolidate the information, and make it accessible with a single API call [#747](https://github.com/rokwire/core-building-block/issues/747)
+
+## [1.46.0] - 2025-06-01
+### Added 
+- Add filter by ids to public accounts [#744](https://github.com/rokwire/core-building-block/issues/744)
+
+## [1.45.2] - 2024-18-12
+### Fixed
+- Fix Case-Insensitive Sorting [#741](https://github.com/rokwire/core-building-block/issues/741)
+
+## [1.45.1] - 2024-13-10
+### Fixed
+- GET services/accounts returns unsorted response [#733](https://github.com/rokwire/core-building-block/issues/733)
+
+## [1.45.0] - 2024-12-10
+### Added
+- Public account filtering by unstructured properties [#734](https://github.com/rokwire/core-building-block/issues/734)
+
+## [1.44.1] - 2024-12-03
+### Fixed
+- Fix Privacy.FieldVisibility validation [#729](https://github.com/rokwire/core-building-block/issues/729)
+
+## [1.44.0] - 2024-11-28
+### Added
+- Set up privacy settings for account directory data visibility [#727](https://github.com/rokwire/core-building-block/issues/727)
+
+## [1.43.0] - 2024-10-21
+### Added
+- Get the account ids with FERPA filed false [#724](https://github.com/rokwire/core-building-block/issues/724)
+
+## [1.42.0] - 2024-06-14
+### Changed
+- Provide external ids on get deleted memberships BBs API [#718](https://github.com/rokwire/core-building-block/issues/718)
+
+## [1.41.0] - 2024-05-30
+### Added
+- Remove account from the system - all BBs [#335](https://github.com/rokwire/core-building-block/issues/335)
+
+## [1.40.0] - 2024-05-09
+### Changed
+- Add "admin_app_access_roles" to the system POST and PUT app_orgs [#712](https://github.com/rokwire/core-building-block/issues/712) 
+
+## [1.39.0] - 2024-04-30
+### Changed
+- Admin app account creation update [#710](https://github.com/rokwire/core-building-block/issues/710)
+
+## [1.38.1] - 2024-03-05
+### Fixed
+- Fix v2 create accounts [#704](https://github.com/rokwire/core-building-block/issues/704)
+
+## [1.38.0] - 2024-03-01
+### Added
+- Expose Create multiple accounts admin API [#702](https://github.com/rokwire/core-building-block/issues/702)
+
+### Changed
+- Update filter accounts API to accept many UIN [#700](https://github.com/rokwire/core-building-block/issues/700)
+
+## [1.37.2] - 2024-02-14
+### Changed
+- Clean up accounts migration legacy code [#698](https://github.com/rokwire/core-building-block/issues/698)
+
+## [1.37.1] - 2024-02-14
+### Fixed
+- Fix nil pointer [#694](https://github.com/rokwire/core-building-block/issues/694)
+
+## [1.37.0] - 2024-02-13
+### Fixed
+- Migration issue [#692](https://github.com/rokwire/core-building-block/issues/692)
+
+## [1.36.0] - 2023-12-13
+### Changed
+- Accounts to tenants account migration improvement [#690](https://github.com/rokwire/core-building-block/issues/690)
+
+## [1.35.1] - 2023-12-08
+### Fixed
+- Handle Create Admin account API issue [#687](https://github.com/rokwire/core-building-block/issues/687)
+- Fix storeSystemData [#685](https://github.com/rokwire/core-building-block/issues/685)
+
+## [1.35.0] - 2023-12-01
+### Changed
+- Single identity within an organisation [#680](https://github.com/rokwire/core-building-block/issues/680)
 
 ## [1.34.0] - 2023-07-06
 ### Added
@@ -413,7 +536,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Users authentication polish [#155](https://github.com/rokwire/core-building-block/issues/155)
 - Optimise the Mongo DB collections indexes usage [#146](https://github.com/rokwire/core-building-block/issues/146)
 
-[Unreleased]: https://github.com/rokwire/core-building-block/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/rokwire/core-building-block/compare/v1.44.0...HEAD
+[1.44.0]: https://github.com/rokwire/core-building-block/compare/v1.43.0...v1.44.0
+[1.43.0]: https://github.com/rokwire/core-building-block/compare/v1.42.0...v1.43.0
+[1.42.0]: https://github.com/rokwire/core-building-block/compare/v1.41.0...v1.42.0
+[1.41.0]: https://github.com/rokwire/core-building-block/compare/v1.40.0...v1.41.0
+[1.40.0]: https://github.com/rokwire/core-building-block/compare/v1.39.0...v1.40.0
+[1.39.0]: https://github.com/rokwire/core-building-block/compare/v1.38.1...v1.39.0
+[1.38.1]: https://github.com/rokwire/core-building-block/compare/v1.38.0...v1.38.1
+[1.38.0]: https://github.com/rokwire/core-building-block/compare/v1.37.2...v1.38.0
+[1.37.2]: https://github.com/rokwire/core-building-block/compare/v1.37.1...v1.37.2
+[1.37.1]: https://github.com/rokwire/core-building-block/compare/v1.37.0...v1.37.1
+[1.37.0]: https://github.com/rokwire/core-building-block/compare/v1.36.0...v1.37.0
+[1.36.0]: https://github.com/rokwire/core-building-block/compare/v1.35.1...v1.36.0
+[1.35.1]: https://github.com/rokwire/core-building-block/compare/v1.35.0...v1.35.1
+[1.35.0]: https://github.com/rokwire/core-building-block/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/rokwire/core-building-block/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/rokwire/core-building-block/compare/v1.32.2...v1.33.0
 [1.32.2]: https://github.com/rokwire/core-building-block/compare/v1.32.1...v1.32.2

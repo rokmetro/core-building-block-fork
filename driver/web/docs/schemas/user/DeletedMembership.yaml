@@ -1,0 +1,14 @@
+required:
+  - account_id
+type: object
+properties:
+  account_id:
+    readOnly: true
+    type: string
+  external_ids:
+    type: object
+    nullable: true
+    additionalProperties:
+      type: string
+  context:
+    type: object

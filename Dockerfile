@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine as builder
+FROM public.ecr.aws/docker/library/golang:1.24-alpine as builder
 
 ENV CGO_ENABLED=0
 
@@ -10,10 +10,10 @@ WORKDIR /app
 COPY . .
 RUN make
 
-FROM alpine:3.17.3
+FROM public.ecr.aws/docker/library/alpine:3.21.3
 
-#we need timezone database
-RUN apk add --no-cache --update tzdata
+#we need timezone database + certificates
+RUN apk add --no-cache tzdata ca-certificates
 
 COPY --from=builder /app/bin/core-building-block /
 
@@ -24,8 +24,7 @@ COPY --from=builder /app/driver/web/docs/gen/def.yaml /driver/web/docs/gen/def.y
 
 COPY --from=builder /app/driver/web/authorization_model.conf /driver/web/authorization_model.conf
 
-COPY --from=builder /app/driver/web/authorization_services_policy.csv /driver/web/authorization_services_policy.csv
-COPY --from=builder /app/driver/web/authorization_admin_policy.csv /driver/web/authorization_admin_policy.csv
+COPY --from=builder /app/driver/web/authorization_application_policy.csv /driver/web/authorization_application_policy.csv
 COPY --from=builder /app/driver/web/authorization_enc_policy.csv /driver/web/authorization_enc_policy.csv
 COPY --from=builder /app/driver/web/authorization_bbs_policy.csv /driver/web/authorization_bbs_policy.csv
 COPY --from=builder /app/driver/web/authorization_tps_policy.csv /driver/web/authorization_tps_policy.csv
@@ -33,8 +32,8 @@ COPY --from=builder /app/driver/web/authorization_system_policy.csv /driver/web/
 
 COPY --from=builder /app/driver/web/scope_authorization_services_policy.csv /driver/web/scope_authorization_services_policy.csv
 
-COPY --from=builder /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_scope.conf /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_scope.conf
-COPY --from=builder /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_string.conf /app/vendor/github.com/rokwire/core-auth-library-go/v3/authorization/authorization_model_string.conf
+COPY --from=builder /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_scope.conf /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_scope.conf
+COPY --from=builder /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_string.conf /app/vendor/github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization/authorization_model_string.conf
 
 COPY --from=builder /etc/passwd /etc/passwd
 

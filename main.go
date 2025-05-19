@@ -28,14 +28,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rokwire/core-auth-library-go/v3/authservice"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
+	rokwireAuth "github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 
-	"github.com/rokwire/core-auth-library-go/v3/envloader"
-	"github.com/rokwire/core-auth-library-go/v3/keys"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logs"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/keys"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/envloader"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logs"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 )
 
 var (
@@ -172,6 +172,16 @@ func main() {
 		logger.Infof("Error parsing max token exp, applying defaults: %v", err)
 	}
 
+	//deleted accounts
+	deleteAccountsPeriodStr := envLoader.GetAndLogEnvVar("ROKWIRE_CORE_DELETE_ACCOUNTS_PERIOD", false, false)
+	var deleteAccountsPeriod *int64
+	deleteAccountsPeriodVal, err := strconv.ParseInt(deleteAccountsPeriodStr, 10, 64)
+	if err == nil {
+		deleteAccountsPeriod = &deleteAccountsPeriodVal
+	} else {
+		logger.Infof("Error parsing delete account period, applying defaults: %v", err)
+	}
+
 	//profile bb adapter
 	migrateProfiles := envLoader.GetAndLogEnvVar("ROKWIRE_CORE_MIGRATE_PROFILES", false, false)
 	migrate, err := strconv.ParseBool(migrateProfiles)
@@ -183,20 +193,20 @@ func main() {
 	profileBBApiKey := envLoader.GetAndLogEnvVar("ROKWIRE_CORE_PROFILE_BB_API_KEY", false, true)
 	profileBBAdapter := profilebb.NewProfileBBAdapter(migrate, profileBBHost, profileBBApiKey)
 
-	authService := &authservice.AuthService{
+	authService := &rokwireAuth.Service{
 		ServiceID:   serviceID,
 		ServiceHost: host,
 		FirstParty:  true,
 	}
 
 	authImpl, err := auth.NewAuth(serviceID, host, currentAuthPrivKey, oldAuthPrivKey, authService, storageAdapter, emailer, twilioPhoneVerifier, profileBBAdapter,
-		defaultTokenExp, minTokenExp, maxTokenExp, supportLegacySigs, Version, logger)
+		defaultTokenExp, minTokenExp, maxTokenExp, deleteAccountsPeriod, supportLegacySigs, Version, logger)
 	if err != nil {
 		logger.Fatalf("Error initializing auth: %v", err)
 	}
 
 	serviceAccountLoader := auth.NewLocalServiceAccountLoader(*authImpl)
-	serviceAccountManager, err := authservice.NewServiceAccountManager(authService, serviceAccountLoader)
+	serviceAccountManager, err := rokwireAuth.NewServiceAccountManager(authService, serviceAccountLoader)
 	if err != nil {
 		logger.Fatalf("Error initializing service account manager: %v", err)
 	}
@@ -220,7 +230,7 @@ func main() {
 	var envData *model.EnvConfigData
 	var corsAllowedHeaders []string
 	var corsAllowedOrigins []string
-	config, err := storageAdapter.FindConfig(model.ConfigTypeEnv, authutils.AllApps, authutils.AllOrgs)
+	config, err := storageAdapter.FindConfig(model.ConfigTypeEnv, rokwireutils.AllApps, rokwireutils.AllOrgs)
 	if err != nil {
 		logger.Fatal(errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, nil, err).Error())
 	}

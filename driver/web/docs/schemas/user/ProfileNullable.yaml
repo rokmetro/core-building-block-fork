@@ -4,6 +4,12 @@ properties:
   photo_url:
     type: string
     nullable: true
+  pronunciation_url:
+    type: string
+    nullable: true
+  pronouns:
+    type: string
+    nullable: true
   first_name:
     type: string
     nullable: true
@@ -24,6 +30,15 @@ properties:
   address:
     type: string
     nullable: true
+  address2:
+    type: string
+    nullable: true
+  po_box:
+    type: string
+    nullable: true
+  city:
+    type: string
+    nullable: true
   zip_code:
     type: string
     nullable: true
@@ -31,6 +46,9 @@ properties:
     type: string
     nullable: true
   country:
+    type: string
+    nullable: true
+  website:
     type: string
     nullable: true
   unstructured_properties:

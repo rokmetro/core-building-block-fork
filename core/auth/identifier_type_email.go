@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rokwire/core-auth-library-go/v3/authutils"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/rokwireutils"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -71,7 +71,7 @@ func (a *emailIdentifierImpl) withIdentifier(creds string) (identifierType, erro
 		return nil, errors.WrapErrorAction(logutils.ActionValidate, typeEmailIdentifier, nil, err)
 	}
 
-	email := strings.TrimSpace(requestCreds.Email)
+	email := strings.TrimSpace(strings.ToLower(requestCreds.Email))
 	if !utils.IsValidEmail(email) {
 		return nil, errors.ErrorData(logutils.StatusInvalid, typeEmailIdentifier, &logutils.FieldArgs{"email": email})
 	}
@@ -314,7 +314,7 @@ func (a *emailIdentifierImpl) sendCode(appName string, code string, codeType str
 			body += " to " + appName
 		}
 		body += ". If you did not request this authentication code, please ignore this message."
-		return "", a.auth.emailer.Send(a.identifier, subject, body, nil)
+		return "verification code sent successfully", a.auth.emailer.Send(a.identifier, subject, body, nil)
 	default:
 		return "", errors.ErrorData(logutils.StatusInvalid, "code type", logutils.StringArgs(codeType))
 	}
@@ -332,9 +332,9 @@ func (a *emailIdentifierImpl) getVerificationSettings() (*int, *int, error) {
 	// Time in hours before auth code expires (default is 24)
 	verifyExpiry := 24
 
-	config, err := a.auth.storage.FindConfig(model.ConfigTypeAuth, authutils.AllApps, authutils.AllOrgs)
+	config, err := a.auth.storage.FindConfig(model.ConfigTypeAuth, rokwireutils.AllApps, rokwireutils.AllOrgs)
 	if err != nil {
-		return nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": authutils.AllApps, "org_id": authutils.AllOrgs}, err)
+		return nil, nil, errors.WrapErrorAction(logutils.ActionFind, model.TypeConfig, &logutils.FieldArgs{"type": model.ConfigTypeAuth, "app_id": rokwireutils.AllApps, "org_id": rokwireutils.AllOrgs}, err)
 	}
 	if config != nil {
 		authConfigData, err := model.GetConfigData[model.AuthConfigData](*config)

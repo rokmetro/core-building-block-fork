@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -90,7 +90,7 @@ func (a *usernameIdentifierImpl) buildIdentifier(accountID *string, appOrg model
 	}
 
 	accountIdentifier := model.AccountIdentifier{ID: uuid.NewString(), Code: a.code, Identifier: a.identifier, Verified: true,
-		Account: model.Account{ID: accountIDStr}, DateCreated: time.Now().UTC()}
+		Linked: accountID != nil, Account: model.Account{ID: accountIDStr}, DateCreated: time.Now().UTC()}
 
 	return "", &accountIdentifier, nil
 }

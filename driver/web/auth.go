@@ -17,25 +17,26 @@ package web
 import (
 	"net/http"
 
-	"github.com/rokwire/core-auth-library-go/v3/authorization"
-	"github.com/rokwire/core-auth-library-go/v3/authservice"
-	"github.com/rokwire/core-auth-library-go/v3/tokenauth"
-	"github.com/rokwire/logging-library-go/v2/errors"
-	"github.com/rokwire/logging-library-go/v2/logutils"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/authorization"
+	"github.com/rokwire/rokwire-building-block-sdk-go/services/core/auth/tokenauth"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/errors"
+	"github.com/rokwire/rokwire-building-block-sdk-go/utils/logging/logutils"
 )
 
 // Auth handler
 type Auth struct {
-	services *tokenauth.Handlers
-	admin    *tokenauth.Handlers
-	enc      *tokenauth.Handlers
-	bbs      *tokenauth.Handlers
-	tps      *tokenauth.Handlers
-	system   *tokenauth.Handlers
+	services    *tokenauth.Handlers
+	admin       *tokenauth.Handlers
+	enc         *tokenauth.Handlers
+	bbs         *tokenauth.Handlers
+	tps         *tokenauth.Handlers
+	system      *tokenauth.Handlers
+	application *tokenauth.Handlers
 }
 
 // NewAuth creates new auth handler
-func NewAuth(serviceRegManager *authservice.ServiceRegManager) (*Auth, error) {
+func NewAuth(serviceRegManager *auth.ServiceRegManager) (*Auth, error) {
 	servicesAuth, err := newServicesAuth(serviceRegManager)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionCreate, "services auth", nil, err)
@@ -72,18 +73,22 @@ func NewAuth(serviceRegManager *authservice.ServiceRegManager) (*Auth, error) {
 	}
 	systemHandlers := tokenauth.NewHandlers(systemAuth)
 
-	auth := Auth{services: &serviceHandlers, admin: &adminHandlers, enc: &encHandlers, bbs: &bbsHandlers, tps: &tpsHandlers, system: &systemHandlers}
+	applicationAuth, err := newApplicationAuth(serviceRegManager)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionCreate, "application auth", nil, err)
+	}
+	applicationHandlers := tokenauth.NewHandlers(applicationAuth)
+
+	auth := Auth{services: &serviceHandlers, admin: &adminHandlers, enc: &encHandlers, bbs: &bbsHandlers, tps: &tpsHandlers, system: &systemHandlers, application: &applicationHandlers}
 
 	return &auth, nil
 }
 
 // ServicesAuth
 
-func newServicesAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+func newServicesAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
 	servicesScopeAuth := authorization.NewCasbinScopeAuthorization("driver/web/scope_authorization_services_policy.csv", serviceRegManager.AuthService.ServiceID)
-	servicesPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_services_policy.csv")
-
-	servicesTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, servicesPermissionAuth, servicesScopeAuth)
+	servicesTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, nil, servicesScopeAuth)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionStart, "token auth for servicesAuth", nil, err)
 	}
@@ -105,9 +110,8 @@ func newServicesAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenau
 
 // AdminAuth
 
-func newAdminAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
-	adminPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_admin_policy.csv")
-	adminTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, adminPermissionAuth, nil)
+func newAdminAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+	adminTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, nil, nil)
 	if err != nil {
 		return nil, errors.WrapErrorAction(logutils.ActionStart, "token auth for adminAuth", nil, err)
 	}
@@ -126,7 +130,7 @@ func newAdminAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.
 
 // EncAuth
 
-func newEncAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+func newEncAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
 	encPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_enc_policy.csv")
 	encTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, encPermissionAuth, nil)
 	if err != nil {
@@ -139,7 +143,7 @@ func newEncAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.St
 
 // BBsAuth
 
-func newBBsAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+func newBBsAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
 	bbsPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_bbs_policy.csv")
 	bbsTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, bbsPermissionAuth, nil)
 	if err != nil {
@@ -164,7 +168,7 @@ func newBBsAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.St
 
 // TPSAuth
 
-func newTPSAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+func newTPSAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
 	tpsPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_tps_policy.csv")
 	tpsTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, tpsPermissionAuth, nil)
 	if err != nil {
@@ -189,7 +193,7 @@ func newTPSAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.St
 
 // SystemAuth
 
-func newSystemAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+func newSystemAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
 	systemPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_system_policy.csv")
 	systemTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, systemPermissionAuth, nil)
 	if err != nil {
@@ -205,5 +209,18 @@ func newSystemAuth(serviceRegManager *authservice.ServiceRegManager) (*tokenauth
 	}
 
 	auth := tokenauth.NewStandardHandler(systemTokenAuth, check)
+	return auth, nil
+}
+
+// ApplicationAuth
+
+func newApplicationAuth(serviceRegManager *auth.ServiceRegManager) (*tokenauth.StandardHandler, error) {
+	applicationPermissionAuth := authorization.NewCasbinStringAuthorization("driver/web/authorization_application_policy.csv")
+	applicationTokenAuth, err := tokenauth.NewTokenAuth(true, serviceRegManager, applicationPermissionAuth, nil)
+	if err != nil {
+		return nil, errors.WrapErrorAction(logutils.ActionStart, "token auth for applicationAuth", nil, err)
+	}
+
+	auth := tokenauth.NewStandardHandler(applicationTokenAuth, nil)
 	return auth, nil
 }
