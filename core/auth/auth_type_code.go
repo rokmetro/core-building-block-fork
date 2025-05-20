@@ -126,7 +126,7 @@ func (a *codeAuthImpl) checkCredentials(identifierImpl identifierType, accountID
 				// store generated codes in login state collection
 				state := map[string]interface{}{stateKeyCode: incomingCode}
 				loginState := model.LoginState{ID: uuid.NewString(), AppID: appOrg.Application.ID, OrgID: appOrg.Organization.ID, AccountID: accountID, State: state, DateCreated: time.Now().UTC()}
-				err := a.auth.storage.InsertLoginState(nil, loginState)
+				err := a.auth.storage.InsertLoginState(context, loginState)
 				if err != nil {
 					return errors.WrapErrorAction(logutils.ActionCreate, model.TypeLoginState, nil, err)
 				}
