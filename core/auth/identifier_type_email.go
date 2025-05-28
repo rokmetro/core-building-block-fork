@@ -16,6 +16,7 @@ package auth
 
 import (
 	"core-building-block/core/model"
+	"core-building-block/driven/storage"
 	"core-building-block/utils"
 	"crypto/subtle"
 	"encoding/json"
@@ -219,12 +220,38 @@ func (a *emailIdentifierImpl) sendVerifyIdentifier(accountIdentifier *model.Acco
 	// generate a new code
 	code := fmt.Sprintf("%06d", utils.GenerateRandomInt(generatedCodeMax))
 
-	// store generated codes in login state collection
-	state := map[string]interface{}{stateKeyCode: code}
-	loginState := model.LoginState{ID: uuid.NewString(), AppID: appOrg.Application.ID, OrgID: appOrg.Organization.ID, AccountID: &accountIdentifier.Account.ID, State: state, DateCreated: time.Now().UTC()}
-	err := a.auth.storage.InsertLoginState(loginState)
+	// allow up to appOrg.LoginsSessionsSetting.MaxConcurrentSessions concurrent login states per appID, orgID, accountID
+	transaction := func(context storage.TransactionContext) error {
+		sessionLimit := appOrg.LoginsSessionsSetting.MaxConcurrentSessions
+		if sessionLimit > 0 {
+			existingStates, err := a.auth.storage.FindLoginStates(context, appOrg.Application.ID, appOrg.Organization.ID, accountIdentifier.Account.ID)
+			if err != nil {
+				return errors.WrapErrorAction(logutils.ActionFind, model.TypeLoginState, nil, err)
+			}
+
+			if len(existingStates) >= sessionLimit {
+				// delete first login state in list (sorted by date created)
+				err = a.auth.storage.DeleteLoginState(context, existingStates[0].ID)
+				if err != nil {
+					return errors.WrapErrorAction(logutils.ActionDelete, model.TypeLoginState, nil, err)
+				}
+			}
+		}
+
+		// store generated codes in login state collection
+		state := map[string]interface{}{stateKeyCode: code}
+		loginState := model.LoginState{ID: uuid.NewString(), AppID: appOrg.Application.ID, OrgID: appOrg.Organization.ID, AccountID: &accountIdentifier.Account.ID, State: state, DateCreated: time.Now().UTC()}
+		err := a.auth.storage.InsertLoginState(context, loginState)
+		if err != nil {
+			return errors.WrapErrorAction(logutils.ActionCreate, model.TypeLoginState, nil, err)
+		}
+
+		return nil
+	}
+
+	err := a.auth.storage.PerformTransaction(transaction)
 	if err != nil {
-		return false, errors.WrapErrorAction(logutils.ActionCreate, model.TypeLoginState, nil, err)
+		return false, errors.WrapErrorAction(logutils.ActionSave, model.TypeLoginState, nil, err)
 	}
 
 	// send authentication email
