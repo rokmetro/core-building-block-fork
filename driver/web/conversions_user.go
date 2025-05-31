@@ -496,7 +496,8 @@ func publicProfileToDef(item *model.PublicProfile) *Def.ProfileNullable {
 	}
 	return &Def.ProfileNullable{PhotoUrl: item.PhotoURL, PronunciationUrl: item.PronunciationURL, Pronouns: item.Pronouns,
 		FirstName: item.FirstName, LastName: item.LastName, Email: item.Email, Phone: item.Phone, BirthYear: &birthYear,
-		Address: item.Address, ZipCode: item.ZipCode, State: item.State, Country: item.Country, Website: item.Website,
+		Address: item.Address, Address2: item.Address2, PoBox: item.POBox, City: item.City,
+		ZipCode: item.ZipCode, State: item.State, Country: item.Country, Website: item.Website,
 		UnstructuredProperties: &item.UnstructuredProperties}
 }
 
