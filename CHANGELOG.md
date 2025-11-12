@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade dependencies
 - Separate auth claims checks from permissions checks
 - Implement refresh token reuse detection grace period [#811](https://github.com/rokwire/core-building-block/issues/811)
+- Improve refresh token grace period logging [#814](https://github.com/rokwire/core-building-block/issues/814)
 ### Fixed
 - Fix email and code sign up
 - Allow update username API to create username
