@@ -46,7 +46,6 @@ func authBuildLoginResponse(l *logs.Log, loginSession *model.LoginSession) logs.
 
 	//params
 	var paramsRes *Def.SharedResLogin_Params
-	var err error
 	if loginSession.Params != nil {
 		paramsRes, err = utils.JSONConvert[Def.SharedResLogin_Params, map[string]interface{}](loginSession.Params)
 		if err != nil {
