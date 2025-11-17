@@ -41,6 +41,8 @@ TSLExpirePolicy:
   $ref: "./application/TSLExpirePolicy.yaml"
 AccessTokenExpirationPolicy:
   $ref: "./application/AccessTokenExpirationPolicy.yaml"
+RefreshGracePeriodPolicy:
+  $ref: "./application/RefreshGracePeriodPolicy.yaml"
 
 # auth
 LoginSession:

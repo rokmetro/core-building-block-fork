@@ -29,7 +29,11 @@ import (
 func authBuildLoginResponse(l *logs.Log, loginSession *model.LoginSession) logs.HTTPResponse {
 	//token
 	accessToken := loginSession.AccessToken
-	refreshToken := loginSession.CurrentRefreshToken()
+	refreshToken, err := loginSession.CurrentRefreshToken()
+	if loginSession.State == "" && err != nil {
+		// return an error if not in MFA state and unable to get refresh token
+		return l.HTTPResponseErrorData(logutils.StatusMissing, model.TypeRefreshToken, nil, err, http.StatusInternalServerError, false)
+	}
 
 	tokenType := Def.SharedResRokwireTokenTokenTypeBearer
 	rokwireToken := Def.SharedResRokwireToken{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &tokenType}
@@ -42,7 +46,6 @@ func authBuildLoginResponse(l *logs.Log, loginSession *model.LoginSession) logs.
 
 	//params
 	var paramsRes *Def.SharedResLogin_Params
-	var err error
 	if loginSession.Params != nil {
 		paramsRes, err = utils.JSONConvert[Def.SharedResLogin_Params, map[string]interface{}](loginSession.Params)
 		if err != nil {

@@ -223,11 +223,16 @@ func loginSessionSettingsFromDef(item *Def.LoginSessionSettings) *model.LoginsSe
 		yearlyExpirePolicy = model.YearlyExpirePolicy{Active: item.YearlyExpirePolicy.Active, Day: item.YearlyExpirePolicy.Day, Month: item.YearlyExpirePolicy.Month,
 			Hour: item.YearlyExpirePolicy.Hour, Min: item.YearlyExpirePolicy.Min}
 	}
+	refreshGracePeriodPolicy := model.RefreshGracePeriodPolicy{}
+	if item.RefreshGracePeriodPolicy != nil {
+		refreshGracePeriodPolicy = model.RefreshGracePeriodPolicy{Active: item.RefreshGracePeriodPolicy.Active, GracePeriod: item.RefreshGracePeriodPolicy.GracePeriod}
+	}
 
 	return &model.LoginsSessionsSetting{
 		MaxConcurrentSessions:       maxConcurrentSessions,
 		AccessTokenExpirationPolicy: accessTokenExpPolicy,
 		InactivityExpirePolicy:      inactivityExpirePolicy,
+		RefreshGracePeriodPolicy:    refreshGracePeriodPolicy,
 		TSLExpirePolicy:             tslExpirePolicy,
 		YearlyExpirePolicy:          yearlyExpirePolicy,
 	}
@@ -239,12 +244,14 @@ func loginSessionSettingsToDef(item model.LoginsSessionsSetting) Def.LoginSessio
 	tslExpirePolicy := Def.TSLExpirePolicy{Active: item.TSLExpirePolicy.Active, TimeSinceLoginPeriod: item.TSLExpirePolicy.TimeSinceLoginPeriod}
 	yearlyExpirePolicy := Def.YearlyExpirePolicy{Active: item.YearlyExpirePolicy.Active, Day: item.YearlyExpirePolicy.Day, Month: item.YearlyExpirePolicy.Month,
 		Hour: item.YearlyExpirePolicy.Hour, Min: item.YearlyExpirePolicy.Min}
+	refreshGracePeriodPolicy := Def.RefreshGracePeriodPolicy{Active: item.RefreshGracePeriodPolicy.Active, GracePeriod: item.RefreshGracePeriodPolicy.GracePeriod}
 
 	maxConcurrentSessions := item.MaxConcurrentSessions
 	return Def.LoginSessionSettings{
 		MaxConcurrentSessions:       &maxConcurrentSessions,
 		AccessTokenExpirationPolicy: &accessTokenExpPolicy,
 		InactivityExpirePolicy:      &inactivityExpirePolicy,
+		RefreshGracePeriodPolicy:    &refreshGracePeriodPolicy,
 		TimeSinceLoginExpirePolicy:  &tslExpirePolicy,
 		YearlyExpirePolicy:          &yearlyExpirePolicy,
 	}
