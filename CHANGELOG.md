@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make email identifiers case insensitive [#43](https://github.com/rokmetro/core-building-block-fork/issues/43)
 - Fix passkey linking issues
 - Add missing profile fields to public profile conversion to API model
-  
+- Fix identifier removal checks for get accounts APIs [#49](https://github.com/rokmetro/core-building-block-fork/issues/49)
+
 ### Changed
 - Replace auth library and logging library with Building Block SDK [#765](https://github.com/rokwire/core-building-block/issues/765)
 

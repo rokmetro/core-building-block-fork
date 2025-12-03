@@ -495,7 +495,7 @@ func (h AdminApisHandler) getFilterAccounts(l *logs.Log, r *http.Request, claims
 
 	accountsResp := accountsToDef(accounts)
 	// remove identifiers if not approved (identifiers may be returned when searching by external IDs)
-	if !utils.Contains(approvedKeys, "identifiers") {
+	if !allAccess && !utils.Contains(approvedKeys, "identifiers") {
 		for i := range accountsResp {
 			accountsResp[i].Identifiers = nil
 		}
